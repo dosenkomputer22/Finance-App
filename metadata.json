@@ -1,0 +1,6 @@
+{
+  "name": "Pendataan Keuangan PHP Native",
+  "description": "Aplikasi pencatatan pemasukan dan pengeluaran keuangan berbasis PHP native dan MySQL untuk upload ke cPanel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
