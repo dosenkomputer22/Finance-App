@@ -40,7 +40,9 @@ import {
   KELOLA_USER_PHP,
   TAMBAH_USER_PHP,
   EDIT_USER_PHP,
-  HAPUS_USER_PHP
+  HAPUS_USER_PHP,
+  SIDEBAR_PHP,
+  PENGATURAN_PHP
 } from './php-templates';
 
 // Primary default transactions history
@@ -303,6 +305,10 @@ export default function App() {
         return EDIT_USER_PHP;
       case 'hapus_user.php':
         return HAPUS_USER_PHP;
+      case 'sidebar.php':
+        return SIDEBAR_PHP;
+      case 'pengaturan.php':
+        return PENGATURAN_PHP;
       case 'README.md':
         return README_CPANEL;
       default:
@@ -342,6 +348,8 @@ export default function App() {
     zip.file('tambah_user.php', TAMBAH_USER_PHP);
     zip.file('edit_user.php', EDIT_USER_PHP);
     zip.file('hapus_user.php', HAPUS_USER_PHP);
+    zip.file('sidebar.php', SIDEBAR_PHP);
+    zip.file('pengaturan.php', PENGATURAN_PHP);
     zip.file('README.md', README_CPANEL);
 
     // Compile into blob payload and trigger anchor injection download

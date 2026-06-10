@@ -81,6 +81,8 @@ export default function SettingsView({
     'koneksi.php', 
     'db.sql', 
     'index.php', 
+    'sidebar.php',
+    'pengaturan.php',
     'login.php', 
     'logout.php', 
     'tambah.php', 

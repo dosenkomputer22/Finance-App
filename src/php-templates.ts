@@ -151,6 +151,35 @@ if (!$table_check_transaksi) {
     ON DUPLICATE KEY UPDATE id=id;";
     @mysqli_query($koneksi, $sql_insert_dummy_transaksi);
 }
+
+// 5. Pastikan kolom theme ada di tabel users (untuk mendukung fitur ubah tema kustom)
+$col_check_theme = @mysqli_query($koneksi, "SHOW COLUMNS FROM \`users\` LIKE 'theme'");
+if ($col_check_theme && mysqli_num_rows($col_check_theme) == 0) {
+    @mysqli_query($koneksi, "ALTER TABLE \`users\` ADD COLUMN \`theme\` VARCHAR(30) NOT NULL DEFAULT 'slate'");
+}
+
+// 6. Pastikan tabel kategori transaksi ada
+$table_check_kategori = @mysqli_query($koneksi, "SELECT 1 FROM \`kategori\` LIMIT 1");
+if (!$table_check_kategori) {
+    $sql_table_kategori = "CREATE TABLE IF NOT EXISTS \`kategori\` (
+      \`id\` INT(11) NOT NULL AUTO_INCREMENT,
+      \`nama\` VARCHAR(100) NOT NULL UNIQUE,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_kategori);
+
+    // Isi Default Kategori
+    $sql_insert_default_kategori = "INSERT INTO \`kategori\` (\`nama\`) VALUES
+    ('Gaji'),
+    ('Belanja'),
+    ('Transportasi'),
+    ('Makan & Minum'),
+    ('Tagihan'),
+    ('Freelance'),
+    ('Lainnya')
+    ON DUPLICATE KEY UPDATE nama=nama;";
+    @mysqli_query($koneksi, $sql_insert_default_kategori);
+}
 ?>`;
 }
 
@@ -170,22 +199,41 @@ CREATE TABLE IF NOT EXISTS \`users\` (
   \`password\` VARCHAR(255) NOT NULL,
   \`nama\` VARCHAR(100) NOT NULL,
   \`role\` VARCHAR(20) NOT NULL DEFAULT 'admin',
+  \`theme\` VARCHAR(30) NOT NULL DEFAULT 'slate',
   PRIMARY KEY (\`id\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Menambahkan Akun Default (username: admin -> Super Admin, username: budi -> Admin)
 -- Password default adalah admin123 (telah di-hash menggunakan bcrypt password_hash())
-INSERT INTO \`users\` (\`id\`, \`username\`, \`password\`, \`nama\`, \`role\`) VALUES
-(1, 'admin', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Administrator Keuangan', 'superadmin'),
-(2, 'budi', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Budi Santoso', 'admin')
+INSERT INTO \`users\` (\`id\`, \`username\`, \`password\`, \`nama\`, \`role\`, \`theme\`) VALUES
+(1, 'admin', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Administrator Keuangan', 'superadmin', 'slate'),
+(2, 'budi', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Budi Santoso', 'admin', 'slate')
 ON DUPLICATE KEY UPDATE id=id;
+
+-- Struktur Tabel Kategori Transaksi
+CREATE TABLE IF NOT EXISTS \`kategori\` (
+  \`id\` INT(11) NOT NULL AUTO_INCREMENT,
+  \`nama\` VARCHAR(100) NOT NULL UNIQUE,
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Isi Default Kategori
+INSERT INTO \`kategori\` (\`id\`, \`nama\`) VALUES
+(1, 'Gaji'),
+(2, 'Belanja'),
+(3, 'Transportasi'),
+(4, 'Makan & Minum'),
+(5, 'Tagihan'),
+(6, 'Freelance'),
+(7, 'Lainnya')
+ON DUPLICATE KEY UPDATE nama=nama;
 
 -- Struktur Tabel transaksi
 CREATE TABLE IF NOT EXISTS \`transaksi\` (
   \`id\` INT(11) NOT NULL AUTO_INCREMENT,
   \`tanggal\` DATE NOT NULL,
   \`keterangan\` VARCHAR(255) NOT NULL,
-  \`kategori\` VARCHAR(100) NOT NULL,
+  \`kategori\` VARCHAR(100) NOT NULL DEFAULT 'Lainnya',
   \`jenis\` ENUM('pemasukan','pengeluaran') NOT NULL,
   \`jumlah\` INT(11) NOT NULL,
   PRIMARY KEY (\`id\`)
@@ -193,12 +241,13 @@ CREATE TABLE IF NOT EXISTS \`transaksi\` (
 
 -- Menambahkan Data Dummy Awal
 INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`jenis\`, \`jumlah\`) VALUES
-(1, '2026-05-23', 'Gaji Bulanan', 'Gaji', 'pemasukan', 10000000),
-(2, '2026-05-23', 'Belanja Bulanan', 'Belanja', 'pengeluaran', 1250000),
-(3, '2026-05-22', 'Transportasi IP', 'Transportasi', 'pengeluaran', 50000),
-(4, '2026-05-21', 'Freelance Project', 'Freelance', 'pemasukan', 2500000),
-(5, '2026-05-21', 'Makan Siang', 'Makan & Minum', 'pengeluaran', 25000),
-(6, '2026-05-18', 'Tagihan Listrik', 'Tagihan', 'pengeluaran', 15000);
+(1, '2026-06-01', 'Gaji Bulanan Utama', 'Gaji', 'pemasukan', 5000000),
+(2, '2026-06-02', 'Membeli Hosting & Domain CPanel', 'Tagihan', 'pengeluaran', 250000),
+(3, '2026-06-03', 'Projek Pembuatan Jasa Website UMKM', 'Freelance', 'pemasukan', 1750000),
+(4, '2026-06-05', 'Membayar Tagihan Listrik Bulanan', 'Tagihan', 'pengeluaran', 190000),
+(5, '2026-06-06', 'Membeli Buku Panduan Pemrograman PHP', 'Belanja', 'pengeluaran', 95000),
+(6, '2026-06-08', 'Menerima Komisi Afiliasi Landing Page', 'Freelance', 'pemasukan', 600000)
+ON DUPLICATE KEY UPDATE id=id;
 `;
 }
 
@@ -250,21 +299,21 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            color: #334155;
+            color: #1e293b;
         }
         .main-card {
             border: none;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             background: #ffffff;
         }
         .v-card-sum {
             border: none;
-            border-radius: 16px;
+            border-radius: 20px;
             transition: all 0.25s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         .v-card-sum:hover {
             transform: translateY(-2px);
@@ -331,37 +380,10 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 </head>
 <body>
 
-<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
-    <div class="container">
-        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
-            <i class="bi bi-wallet2 me-2 text-primary"></i>
-            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
-        </span>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
-            <ul class="navbar-nav gap-1 my-2 my-sm-0">
-                <li class="nav-item">
-                    <a href="index.php" class="nav-link active fw-bold text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a href="kelola_user.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
-                </li>
-            </ul>
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
-                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
-                </span>
-                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar dari PHP session ini?');">
-                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
-                </a>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<div class="container py-2 pb-5">
+<?php
+$active_page = 'dashboard';
+include 'sidebar.php';
+?>
     
     <!-- Bagian Ringkasan Anggaran -->
     <div class="row g-4 mb-4">
@@ -514,12 +536,15 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
     </div>
     
 </div>
-
-<footer class="footer bg-white border-top py-4 text-center text-muted small mt-5">
-    <div class="container">
-        <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
-    </div>
-</footer>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -539,7 +564,7 @@ require_once 'koneksi.php';
 
 $error = '';
 
-// Verifikasi jika form dikirimkan
+// Verifikasi jika form dikirimkan via POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Escape dan amankan input mentah
     $tanggal = trim($_POST['tanggal']);
@@ -549,7 +574,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $jumlah = trim($_POST['jumlah']);
 
     // Validasi sederhana: pastikan tidak ada data yang kosong
-    if (empty($tanggal) || empty($keterangan) || empty($jenis) || empty($jumlah) || empty($kategori)) {
+    if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah)) {
         $error = "Peringatan: Semua data wajib diisi dan tidak boleh dibiarkan kosong!";
     } elseif ($jumlah <= 0) {
         $error = "Peringatan: Nominal jumlah harus lebih besar dari Rp 0!";
@@ -564,8 +589,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = mysqli_prepare($koneksi, $query_insert);
 
         if ($stmt) {
-            // Ikat parameter ("sssis" : s=string, i=integer)
-            mysqli_stmt_bind_param($stmt, "sssis", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int);
+            // Ikat parameter ("ssssi" : s=string, i=integer)
+            mysqli_stmt_bind_param($stmt, "ssssi", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int);
 
             // Jalankan Statement
             if (mysqli_stmt_execute($stmt)) {
@@ -579,7 +604,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Membebaskan memori statement
             mysqli_stmt_close($stmt);
         } else {
-            $error = "Kegagalan sistem internal MySQLi dalam penyusunan query.";
+            $error = "Gagal memproses susunan syntax query MySQL: " . mysqli_error($koneksi);
         }
     }
 }
@@ -589,124 +614,129 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Transaksi Keuangan</title>
+    <title>Tambah Transaksi - KeuanganKu</title>
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f8fafc;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
         }
         .main-card {
             border: none;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
-    <div class="container">
-        <a href="index.php" class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center text-white">
-            <i class="bi bi-wallet2 text-primary me-2"></i>
-            KeuanganKu
-        </a>
-    </div>
-</nav>
-
-<div class="container py-2 pb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-7 col-md-10">
-            
-            <!-- Tombol Kembali -->
-            <div class="mb-3">
-                <a href="index.php" class="btn btn-link link-dark text-decoration-none p-0">
-                    <i class="bi bi-arrow-left-circle-fill me-1 text-secondary"></i> Kembali ke Dashboard
-                </a>
-            </div>
-
-            <!-- Form Card -->
-            <div class="card main-card overflow-hidden">
-                <div class="card-header bg-dark text-white p-3" style="background-color: #131926 !important;">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Tambah Transaksi Baru</h5>
-                </div>
-                <div class="card-body p-4">
-
-                    <?php if (!empty($error)): ?>
-                        <div class="alert alert-danger d-flex align-items-center" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-                            <div><?= $error; ?></div>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="tambah.php" method="POST">
-                        <div class="row g-3">
-                            
-                            <!-- Pilih Tanggal -->
-                            <div class="col-md-6">
-                                <label for="tanggal" class="form-label fw-semibold text-secondary">Tanggal Transaksi</label>
-                                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= date('Y-m-d'); ?>" required>
-                            </div>
-
-                            <!-- Pilih Aliran -->
-                            <div class="col-md-6">
-                                <label for="jenis" class="form-label fw-semibold text-secondary">Jenis Transaksi</label>
-                                <select class="form-select" id="jenis" name="jenis" required>
-                                    <option value="" disabled selected>-- Pilih Jenis --</option>
-                                    <option value="pemasukan">Pemasukan (Uang Masuk)</option>
-                                    <option value="pengeluaran">Pengeluaran (Uang Keluar)</option>
-                                </select>
-                            </div>
-
-                            <!-- Pilih Kategori -->
-                            <div class="col-md-6">
-                                <label for="kategori" class="form-label fw-semibold text-secondary">Kategori</label>
-                                <select class="form-select" id="kategori" name="kategori" required>
-                                    <option value="Gaji">Gaji</option>
-                                    <option value="Freelance">Freelance</option>
-                                    <option value="Belanja">Belanja</option>
-                                    <option value="Transportasi">Transportasi</option>
-                                    <option value="Makan & Minum">Makan & Minum</option>
-                                    <option value="Tagihan">Tagihan</option>
-                                    <option value="Lainnya" selected>Lainnya</option>
-                                </select>
-                            </div>
-
-                            <!-- Input Jumlah -->
-                            <div class="col-md-6">
-                                <label for="jumlah" class="form-label fw-semibold text-secondary">Jumlah Nominal (Rupiah)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light fw-bold text-secondary">Rp</span>
-                                    <input type="number" class="form-control" id="jumlah" name="jumlah" placeholder="Contoh: 100000" min="1" required>
-                                </div>
-                            </div>
-
-                            <!-- Input Keterangan -->
-                            <div class="col-12 font-monospace">
-                                <label for="keterangan" class="form-label fw-semibold text-secondary">Keterangan / Deskripsi</label>
-                                <textarea class="form-control" id="keterangan" name="keterangan" rows="3" placeholder="Contoh: Membeli makan siang, Pembayaran projek web..." required></textarea>
-                            </div>
-
-                            <!-- Tombol Submit -->
-                            <div class="col-12 border-top pt-3 mt-4 d-flex justify-content-end gap-2">
-                                <a href="index.php" class="btn btn-outline-secondary px-4 py-2">Batal</a>
-                                <button type="submit" class="btn btn-primary px-4 py-2">
-                                    <i class="bi bi-check-circle-fill me-1"></i> Simpan Transaksi
-                                </button>
-                            </div>
-
-                        </div>
-                    </form>
-
-                </div>
-            </div>
-
+<?php
+$active_page = 'tambah_transaksi';
+include 'sidebar.php';
+?>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="index.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Tambah Transaksi Baru</h4>
         </div>
+
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger px-3 py-2.5 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #b91c1c;">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                <div class="small fw-semibold"><?= htmlspecialchars($error); ?></div>
+            </div>
+        <?php endif; ?>
+
+        <form action="tambah.php" method="POST">
+            <div class="mb-3">
+                <label for="tanggal" class="form-label">Tanggal Transaksi</label>
+                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= date('Y-m-d'); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label d-block">Jenis Aliran Dana</label>
+                <div class="form-check form-check-inline me-4">
+                    <input class="form-check-input" type="radio" name="jenis" id="pemasukan" value="pemasukan" checked>
+                    <label class="form-check-label fw-semibold text-success" for="pemasukan">
+                        <i class="bi bi-box-arrow-in-down-left me-1"></i> Pemasukan
+                    </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="jenis" id="pengeluaran" value="pengeluaran">
+                    <label class="form-check-label fw-semibold text-danger" for="pengeluaran">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Pengeluaran
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="kategori" class="form-label">Kategori Transaksi</label>
+                <select class="form-select" id="kategori" name="kategori" required>
+                    <?php
+                    $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori ORDER BY id ASC");
+                    if ($cat_query) {
+                        while ($cat_row = mysqli_fetch_assoc($cat_query)) {
+                            $cat_name = htmlspecialchars($cat_row['nama']);
+                            $selected = ($cat_name === 'Lainnya') ? 'selected' : '';
+                            echo "<option value=\\"$cat_name\\" $selected>$cat_name</option>";
+                        }
+                    } else {
+                        echo '<option value="Lainnya" selected>Lainnya</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="jumlah" class="form-label">Jumlah Uang (Rupiah Rp)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-slate-500 font-monospace fw-bold">Rp</span>
+                    <input type="number" class="form-control font-monospace fw-bold" id="jumlah" name="jumlah" placeholder="Contoh: 100000" min="1" required>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="keterangan" class="form-label">Keterangan Catatan</label>
+                <textarea class="form-control" id="keterangan" name="keterangan" placeholder="Ketik keterangan detail pembayaran..." rows="3" required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold shadow-sm text-uppercase tracking-wider">
+                <i class="bi bi-save me-1.5"></i> Simpan Catatan Keuangan
+            </button>
+        </form>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -742,7 +772,7 @@ if ($stmt_select) {
     mysqli_stmt_execute($stmt_select);
     $result = mysqli_stmt_get_result($stmt_select);
     
-    // Alihkan jika data id tidak ada di database
+    // Alihkan jika data id tidak terdapat di database
     if (mysqli_num_rows($result) === 0) {
         header("Location: index.php");
         exit();
@@ -763,34 +793,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $jumlah = trim($_POST['jumlah']);
 
     // Validasi data masukan
-    if (empty($tanggal) || empty($keterangan) || empty($jenis) || empty($jumlah) || empty($kategori)) {
-        $error = "Peringatan: Semua kolom harus diisi!";
+    if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah)) {
+        $error = "Peringatan: Semua kolom isian formulir wajib dilengkapi!";
     } elseif ($jumlah <= 0) {
-        $error = "Peringatan: Nominal jumlah minimal harus lebih besar dari Rp 0!";
+        $error = "Peringatan: Nominal jumlah transaksi wajib di atas Rp 0!";
     } elseif ($jenis !== 'pemasukan' && $jenis !== 'pengeluaran') {
-        $error = "Peringatan: Pilihan jenis tidak tersedia di sistem!";
+        $error = "Peringatan: Jenis transaksi tidak valid.";
     } else {
         $jumlah_int = (int) $jumlah;
 
-        // Persiapkan Query Update MySQLi
+        // Persingkat pembaruan menggunakan parameterized set statement
         $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ?";
         $stmt_update = mysqli_prepare($koneksi, $query_update);
 
         if ($stmt_update) {
-            // Bind parameter ("ssssii" : s=string, i=integer)
             mysqli_stmt_bind_param($stmt_update, "ssssii", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id);
 
-            // Eksekusi statement update
             if (mysqli_stmt_execute($stmt_update)) {
-                // Sukses mengedit, kembali ke beranda dashboard
+                // Alihkan setelah sukses diupdate
                 header("Location: index.php");
                 exit();
             } else {
-                $error = "Gagal memperbarui transaksi: " . mysqli_stmt_error($stmt_update);
+                $error = "Gagal memproses eksekusi pembaruan database: " . mysqli_stmt_error($stmt_update);
             }
             mysqli_stmt_close($stmt_update);
         } else {
-            $error = "Kegagalan sistem internal database MySQLi dalam pembaruan kueri.";
+            $error = "Masalah kueri: Gagal memproses prepared update statement.";
         }
     }
 }
@@ -800,123 +828,136 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ubah Data Transaksi - KeuanganKu</title>
+    <title>Ubah Transaksi - KeuanganKu</title>
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f8fafc;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
         }
         .main-card {
             border: none;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
-    <div class="container">
-        <a href="index.php" class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center text-white">
-            <i class="bi bi-wallet2 text-primary me-2"></i>
-            KeuanganKu
-        </a>
-    </div>
-</nav>
-
-<div class="container py-2 pb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-7 col-md-10">
-            
-            <!-- Tombol Kembali -->
-            <div class="mb-3">
-                <a href="index.php" class="btn btn-link link-dark text-decoration-none p-0">
-                    <i class="bi bi-arrow-left-circle-fill me-1 text-secondary"></i> Kembali ke Dashboard
-                </a>
-            </div>
-
-            <!-- Form Edit Card -->
-            <div class="card main-card overflow-hidden">
-                <div class="card-header bg-dark text-white p-3" style="background-color: #131926 !important;">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Ubah / Edit Detail Transaksi</h5>
-                </div>
-                <div class="card-body p-4">
-
-                    <?php if (!empty($error)): ?>
-                        <div class="alert alert-danger d-flex align-items-center" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-                            <div><?= $error; ?></div>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="edit.php?id=<?= $id; ?>" method="POST">
-                        <div class="row g-3">
-                            
-                            <!-- Pilih Tanggal -->
-                            <div class="col-md-6">
-                                <label for="tanggal" class="form-label fw-semibold text-secondary">Tanggal Transaksi</label>
-                                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= htmlspecialchars($old_data['tanggal']); ?>" required>
-                            </div>
-
-                            <!-- Pilih Aliran -->
-                            <div class="col-md-6">
-                                <label for="jenis" class="form-label fw-semibold text-secondary">Jenis Aliran Keuangan</label>
-                                <select class="form-select" id="jenis" name="jenis" required>
-                                    <option value="pemasukan" <?= $old_data['jenis'] === 'pemasukan' ? 'selected' : ''; ?>>Pemasukan (Uang Masuk)</option>
-                                    <option value="pengeluaran" <?= $old_data['jenis'] === 'pengeluaran' ? 'selected' : ''; ?>>Pengeluaran (Uang Keluar)</option>
-                                </select>
-                            </div>
-
-                            <!-- Pilih Kategori -->
-                            <div class="col-md-6">
-                                <label for="kategori" class="form-label fw-semibold text-secondary">Kategori</label>
-                                <select class="form-select" id="kategori" name="kategori" required>
-                                    <option value="Gaji" <?= $old_data['kategori'] === 'Gaji' ? 'selected' : ''; ?>>Gaji</option>
-                                    <option value="Freelance" <?= $old_data['kategori'] === 'Freelance' ? 'selected' : ''; ?>>Freelance</option>
-                                    <option value="Belanja" <?= $old_data['kategori'] === 'Belanja' ? 'selected' : ''; ?>>Belanja</option>
-                                    <option value="Transportasi" <?= $old_data['kategori'] === 'Transportasi' ? 'selected' : ''; ?>>Transportasi</option>
-                                    <option value="Makan & Minum" <?= $old_data['kategori'] === 'Makan & Minum' ? 'selected' : ''; ?>>Makan & Minum</option>
-                                    <option value="Tagihan" <?= $old_data['kategori'] === 'Tagihan' ? 'selected' : ''; ?>>Tagihan</option>
-                                    <option value="Lainnya" <?= $old_data['kategori'] === 'Lainnya' ? 'selected' : ''; ?>>Lainnya</option>
-                                </select>
-                            </div>
-
-                            <!-- Input Jumlah -->
-                            <div class="col-md-6">
-                                <label for="jumlah" class="form-label fw-semibold text-secondary">Jumlah Nominal (Rupiah)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light fw-bold text-secondary">Rp</span>
-                                    <input type="number" class="form-control" id="jumlah" name="jumlah" value="<?= htmlspecialchars($old_data['jumlah']); ?>" min="1" required>
-                                </div>
-                            </div>
-
-                            <!-- Input Keterangan -->
-                            <div class="col-12 font-monospace">
-                                <label for="keterangan" class="form-label fw-semibold text-secondary">Keterangan / Deskripsi</label>
-                                <textarea class="form-control" id="keterangan" name="keterangan" rows="3" required><?= htmlspecialchars($old_data['keterangan']); ?></textarea>
-                            </div>
-
-                            <!-- Tombol Submit -->
-                            <div class="col-12 border-top pt-3 mt-4 d-flex justify-content-end gap-2">
-                                <a href="index.php" class="btn btn-outline-secondary px-4 py-2">Batal</a>
-                                <button type="submit" class="btn btn-warning text-dark fw-bold px-4 py-2">
-                                    <i class="bi bi-save-fill me-1"></i> Simpan Perubahan
-                                </button>
-                            </div>
-
-                        </div>
-                    </form>
-
-                </div>
-            </div>
-
+<?php
+$active_page = 'dashboard';
+include 'sidebar.php';
+?>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="index.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Ubah Detail Transaksi</h4>
         </div>
+
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger px-3 py-2.5 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #b91c1c;">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                <div class="small fw-semibold"><?= htmlspecialchars($error); ?></div>
+            </div>
+        <?php endif; ?>
+
+        <form action="edit.php?id=<?= $id; ?>" method="POST">
+            <div class="mb-3">
+                <label for="tanggal" class="form-label">Tanggal Transaksi</label>
+                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= htmlspecialchars($old_data['tanggal']); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label d-block">Jenis Aliran Dana</label>
+                <div class="form-check form-check-inline me-4">
+                    <input class="form-check-input" type="radio" name="jenis" id="pemasukan" value="pemasukan" <?= $old_data['jenis'] === 'pemasukan' ? 'checked' : ''; ?>>
+                    <label class="form-check-label fw-semibold text-success" for="pemasukan">
+                        <i class="bi bi-box-arrow-in-down-left me-1"></i> Pemasukan
+                    </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="jenis" id="pengeluaran" value="pengeluaran" <?= $old_data['jenis'] === 'pengeluaran' ? 'checked' : ''; ?>>
+                    <label class="form-check-label fw-semibold text-danger" for="pengeluaran">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Pengeluaran
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="kategori" class="form-label">Kategori Transaksi</label>
+                <select class="form-select" id="kategori" name="kategori" required>
+                    <?php
+                    $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori ORDER BY id ASC");
+                    if ($cat_query) {
+                        $found_any_selected = false;
+                        while ($cat_row = mysqli_fetch_assoc($cat_query)) {
+                            $cat_name = htmlspecialchars($cat_row['nama']);
+                            $selected = ($old_data['kategori'] === $cat_name) ? 'selected' : '';
+                            if ($selected) $found_any_selected = true;
+                            echo "<option value=\\"$cat_name\\" $selected>$cat_name</option>";
+                        }
+                        // Jika kategori lama tidak terdaftar lagi (dihapus/lainnya), tambahkan pilihan cadangan
+                        if (!$found_any_selected && !empty($old_data['kategori'])) {
+                            $cat_name_old = htmlspecialchars($old_data['kategori']);
+                            echo "<option value=\\"$cat_name_old\\" selected>$cat_name_old (Kustom/Non-Aktif)</option>";
+                        }
+                    } else {
+                        echo '<option value="Lainnya" selected>Lainnya</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="jumlah" class="form-label">Jumlah Uang (Rupiah Rp)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-slate-500 font-monospace fw-bold">Rp</span>
+                    <input type="number" class="form-control font-monospace fw-bold" id="jumlah" name="jumlah" value="<?= htmlspecialchars($old_data['jumlah']); ?>" min="1" required>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="keterangan" class="form-label">Keterangan Catatan</label>
+                <textarea class="form-control" id="keterangan" name="keterangan" rows="3" required><?= htmlspecialchars($old_data['keterangan']); ?></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold shadow-sm text-uppercase tracking-wider">
+                <i class="bi bi-check-circle me-1.5"></i> Simpan Perubahan Transaksi
+            </button>
+        </form>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -1270,43 +1311,26 @@ $result_users = mysqli_query($koneksi, $query_users);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; color: #334155; }
-        .main-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); background: #ffffff; }
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            background: #ffffff;
+        }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
-    <div class="container">
-        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
-            <i class="bi bi-wallet2 me-2 text-primary"></i>
-            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
-        </span>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
-            <ul class="navbar-nav gap-1 my-2 my-sm-0">
-                <li class="nav-item">
-                    <a href="index.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a href="kelola_user.php" class="nav-link active fw-bold text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
-                </li>
-            </ul>
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
-                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
-                </span>
-                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar?');">
-                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
-                </a>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<div class="container py-2">
+<?php
+$active_page = 'kelola_user';
+include 'sidebar.php';
+?>
+<div class="container-fluid py-2">
     <?php if (isset($_GET['msg'])): ?>
         <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-xs border-0 py-3 mb-4" role="alert">
             <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i>
@@ -1407,6 +1431,15 @@ $result_users = mysqli_query($koneksi, $query_users);
         </div>
     </div>
 </div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -1479,20 +1512,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Baru - Tambah Pengguna</title>
+    <title>Tambah Pengguna - KeuanganKu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
+        }
     </style>
 </head>
 <body>
 
-<div class="container py-5" style="max-width: 600px;">
-    <div class="card border-0 rounded-4 shadow-lg p-3">
-        <div class="card-body">
-            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah User Baru</h4>
-            <p class="text-muted small">Daftarkan akun administrator baru ke dalam database keamanan server.</p>
+<?php
+$active_page = 'kelola_user';
+include 'sidebar.php';
+?>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="kelola_user.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Tambah User Baru</h4>
+        </div>
+        <p class="text-muted small mb-4">Daftarkan akun administrator baru ke dalam database keamanan server.</p>
 
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger py-2.5 rounded-3 border-0 small font-semibold mb-4">
@@ -1529,9 +1595,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan User</button>
                 </div>
             </form>
-        </div>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 </body>
 </html>`;
@@ -1611,18 +1684,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Baru - Edit Pengguna</title>
+    <title>Edit Pengguna - KeuanganKu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
-    <style> body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; } </style>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
+        }
+    </style>
 </head>
 <body>
 
-<div class="container py-5" style="max-width: 600px;">
-    <div class="card border-0 rounded-4 shadow-lg p-3">
-        <div class="card-body">
-            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Pengguna</h4>
-            <p class="text-muted small">Silakan sesuaikan pengaturan data user di bawah.</p>
+<?php
+$active_page = 'kelola_user';
+include 'sidebar.php';
+?>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="kelola_user.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Ubah Data Pengguna</h4>
+        </div>
+        <p class="text-muted small mb-4">Silakan sesuaikan pengaturan data user di bawah.</p>
 
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger font-semibold mb-4"><?= $error; ?></div>
@@ -1660,9 +1768,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan Perubahan</button>
                 </div>
             </form>
-        </div>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 </body>
 </html>`;
@@ -1719,4 +1834,729 @@ if (mysqli_stmt_execute($stmt_del)) {
     exit();
 }
 ?>`;
+
+export const SIDEBAR_PHP = `<?php
+// sidebar.php
+// Sidebar layout shared across index.php, kelola_user.php, tambah.php, edit.php, dsb.
+
+// Ensure session is started safely
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($koneksi)) {
+    include_once 'koneksi.php';
+}
+
+$active_page = $active_page ?? 'dashboard';
+$user_nama = htmlspecialchars($_SESSION['nama'] ?? 'Pengguna');
+$user_role = htmlspecialchars($_SESSION['role'] ?? 'admin');
+$user_username = htmlspecialchars($_SESSION['username'] ?? 'user');
+
+// Ambil & Terapkan Tema Warna Dinamis dari Pengaturan User
+if (isset($koneksi) && !isset($_SESSION['theme'])) {
+    $db_username_escaped = mysqli_real_escape_string($koneksi, $user_username);
+    $theme_query = mysqli_query($koneksi, "SELECT theme FROM users WHERE username = '$db_username_escaped'");
+    if ($theme_query && mysqli_num_rows($theme_query) > 0) {
+        $theme_row = mysqli_fetch_assoc($theme_query);
+        $_SESSION['theme'] = $theme_row['theme'];
+    } else {
+        $_SESSION['theme'] = 'slate';
+    }
+}
+$current_theme = $_SESSION['theme'] ?? 'slate';
+
+$theme_colors = [
+    'slate' => [
+        'name' => 'Modern Slate',
+        'primary' => '#2563eb', // Blue 600
+        'hover' => '#1d4ed8',
+        'rgb' => '37, 99, 235',
+        'bg_sidebar' => '#0f172a', // Slate 900
+        'text_sidebar' => '#cbd5e1',
+        'sidebar_active' => '#2563eb'
+    ],
+    'emerald' => [
+        'name' => 'Emerald Forest',
+        'primary' => '#059669', // Emerald 600
+        'hover' => '#047857',
+        'rgb' => '5, 150, 105',
+        'bg_sidebar' => '#064e3b', // Emerald 900
+        'text_sidebar' => '#d1fae5',
+        'sidebar_active' => '#059669'
+    ],
+    'violet' => [
+        'name' => 'Royal Violet',
+        'primary' => '#7c3aed', // Violet 600
+        'hover' => '#6d28d9',
+        'rgb' => '124, 58, 237',
+        'bg_sidebar' => '#2e1065', // Violet 900
+        'text_sidebar' => '#f5f3ff',
+        'sidebar_active' => '#7c3aed'
+    ],
+    'crimson' => [
+        'name' => 'Charcoal Crimson',
+        'primary' => '#dc2626', // Red 600
+        'hover' => '#b91c1c',
+        'rgb' => '220, 38, 38',
+        'bg_sidebar' => '#450a0a', // Red 900
+        'text_sidebar' => '#fee2e2',
+        'sidebar_active' => '#dc2626'
+    ],
+    'amber' => [
+        'name' => 'Amber Sunset',
+        'primary' => '#d97706', // Amber 600
+        'hover' => '#b45309',
+        'rgb' => '217, 119, 6',
+        'bg_sidebar' => '#451a03', // Amber 900
+        'text_sidebar' => '#fffbeb',
+        'sidebar_active' => '#d97706'
+    ]
+];
+
+$selected_theme = isset($theme_colors[$current_theme]) ? $current_theme : 'slate';
+$theme_cfg = $theme_colors[$selected_theme];
+?>
+<style>
+    /* Styling khusus Sidebar Premium dengan Tema Dinamis */
+    .sidebar-container {
+        width: 280px;
+        background-color: <?= $theme_cfg['bg_sidebar']; ?>;
+        color: <?= $theme_cfg['text_sidebar']; ?>;
+        transition: all 0.3s ease;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        z-index: 1000;
+        flex-shrink: 0;
+    }
+    
+    .sidebar-brand {
+        padding: 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .sidebar-nav-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 600;
+        text-decoration: none;
+        border-radius: 12px;
+        margin: 4px 16px;
+        transition: all 0.2s ease;
+    }
+    
+    .sidebar-nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.07);
+        color: #ffffff;
+    }
+    
+    .sidebar-nav-link.active {
+        background-color: <?= $theme_cfg['sidebar_active']; ?> !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(<?= $theme_cfg['rgb']; ?>, 0.35);
+    }
+    
+    .sidebar-nav-link i {
+        font-size: 1.25rem;
+        margin-right: 12px;
+    }
+
+    .user-profile-section {
+        background-color: rgba(255, 255, 255, 0.06);
+        border-radius: 16px;
+        padding: 16px;
+        margin: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .mobile-header {
+        background-color: <?= $theme_cfg['bg_sidebar']; ?>;
+        color: #ffffff;
+        padding: 15px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Penyesuaian layout fluid */
+    .app-layout-wrapper {
+        display: flex;
+        min-height: 100vh;
+        width: 100%;
+    }
+
+    .main-canvas-area {
+        flex-grow: 1;
+        background-color: #f8fafc;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Override Warna Booster Bootstrap secara Dinamis */
+    .btn-primary {
+        background-color: <?= $theme_cfg['primary']; ?> !important;
+        border-color: <?= $theme_cfg['primary']; ?> !important;
+    }
+    .btn-primary:hover, .btn-primary:active, .btn-primary:focus {
+        background-color: <?= $theme_cfg['hover']; ?> !important;
+        border-color: <?= $theme_cfg['hover']; ?> !important;
+    }
+    .btn-outline-primary {
+        color: <?= $theme_cfg['primary']; ?> !important;
+        border-color: <?= $theme_cfg['primary']; ?> !important;
+    }
+    .btn-outline-primary:hover {
+        background-color: <?= $theme_cfg['primary']; ?> !important;
+        color: #ffffff !important;
+    }
+    .text-primary {
+        color: <?= $theme_cfg['primary']; ?> !important;
+    }
+    .bg-primary {
+        background-color: <?= $theme_cfg['primary']; ?> !important;
+    }
+    .badge.bg-primary-subtle {
+        background-color: rgba(<?= $theme_cfg['rgb']; ?>, 0.12) !important;
+        color: <?= $theme_cfg['primary']; ?> !important;
+        border: 1px solid rgba(<?= $theme_cfg['rgb']; ?>, 0.2) !important;
+    }
+    .border-primary-200 {
+        border-color: rgba(<?= $theme_cfg['rgb']; ?>, 0.2) !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .sidebar-container {
+            position: fixed;
+            left: -280px;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            height: 100vh;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        
+        .sidebar-container.show {
+            left: 0;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+        }
+
+        .sidebar-backdrop.show {
+            display: block;
+        }
+    }
+</style>
+
+<div class="app-layout-wrapper">
+    <!-- Backdrop untuk mobile menu -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebarMenu()"></div>
+
+    <!-- Sidebar Container -->
+    <aside class="sidebar-container d-flex flex-column" id="sidebarMenu">
+        <!-- Brand Header Logo -->
+        <div class="sidebar-brand">
+            <a href="index.php" class="d-flex align-items-center text-white text-decoration-none">
+                <i class="bi bi-wallet2 text-white fs-3 me-2"></i>
+                <div>
+                    <h5 class="fw-bold mb-0 tracking-tight" style="letter-spacing: -0.025em; color: #ffffff;">KeuanganKu</h5>
+                    <span class="badge bg-primary-subtle font-monospace" style="font-size: 0.65rem;">v1.3 - Pro</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="flex-grow-1 py-4">
+            <a href="index.php" class="sidebar-nav-link <?= ($active_page === 'dashboard') ? 'active' : ''; ?>">
+                <i class="bi bi-grid-fill"></i>
+                <span>Dashboard</span>
+            </a>
+            
+            <a href="tambah.php" class="sidebar-nav-link <?= ($active_page === 'tambah_transaksi') ? 'active' : ''; ?>">
+                <i class="bi bi-plus-circle-fill"></i>
+                <span>Tambah Transaksi</span>
+            </a>
+            
+            <a href="kelola_user.php" class="sidebar-nav-link <?= ($active_page === 'kelola_user') ? 'active' : ''; ?>">
+                <i class="bi bi-people-fill"></i>
+                <span>Kelola User</span>
+            </a>
+            
+            <a href="pengaturan.php" class="sidebar-nav-link <?= ($active_page === 'pengaturan') ? 'active' : ''; ?>">
+                <i class="bi bi-gear-fill"></i>
+                <span>Pengaturan</span>
+            </a>
+        </nav>
+
+        <!-- User Profile & Action Box at Bottom -->
+        <div class="mt-auto">
+            <div class="user-profile-section">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="bg-primary rounded-circle text-center d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; flex-shrink: 0;">
+                        <i class="bi bi-person-fill text-white fs-5"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <h6 class="fw-bold text-white mb-0 text-truncate" style="font-size: 0.85rem;"><?= $user_nama; ?></h6>
+                        <span class="text-uppercase font-monospace text-slate-400 d-block" style="font-size: 0.65rem;"><?= $user_role; ?></span>
+                    </div>
+                </div>
+                <hr class="border-secondary my-2.5" style="opacity: 0.15;">
+                <div class="d-grid">
+                    <a href="logout.php" class="btn btn-outline-danger btn-sm rounded-3 py-1.5 font-semibold text-start px-3 text-white border-0" style="background-color: rgba(239, 68, 68, 0.1);" onclick="return confirm('Apakah Anda yakin ingin keluar dari PHP session ini?');">
+                        <i class="bi bi-box-arrow-right me-2 text-danger"></i>Keluar Akun
+                    </a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Canvas Area -->
+    <div class="main-canvas-area col">
+        <!-- Mobile Header Bar -->
+        <header class="mobile-header d-md-none d-flex justify-content-between align-items-center">
+            <a href="index.php" class="d-flex align-items-center text-white text-decoration-none">
+                <i class="bi bi-wallet2 text-primary fs-4 me-2"></i>
+                <h6 class="fw-bold mb-0">KeuanganKu</h6>
+            </a>
+            <button class="btn btn-dark border-secondary px-2.5 py-1.5 rounded-3" onclick="toggleSidebarMenu()">
+                <i class="bi bi-list fs-4 font-extrabold text-white"></i>
+            </button>
+        </header>
+
+        <!-- Top breadcrumb bar for large screens -->
+        <header class="bg-white border-bottom py-3 px-4 d-none d-md-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted text-uppercase fw-bold font-monospace text-xs" style="font-size: 0.7rem; letter-spacing: 0.05em">Aplikasi KeuanganKu Native PHP</span>
+                <i class="bi bi-chevron-right text-muted" style="font-size: 0.8rem;"></i>
+                <span class="text-dark fw-bold text-xs" style="font-size: 0.8rem;"><?= htmlspecialchars(ucwords(str_replace('_', ' ', $active_page))); ?></span>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2 font-monospace text-xs bg-light px-3 py-1.5 rounded-3 text-muted" style="font-size: 0.75rem;">
+                <i class="bi bi-clock-fill text-primary"></i>
+                <span>Waktu Server: <?= date('d M Y'); ?></span>
+            </div>
+        </header>
+
+        <!-- Container for inner contents -->
+        <div class="p-3 p-md-4 flex-grow-1 overflow-auto">
+<script>
+    function toggleSidebarMenu() {
+        const sidebar = document.getElementById('sidebarMenu');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        sidebar.classList.toggle('show');
+        backdrop.classList.toggle('show');
+    }
+</script>
+`;
+
+export const PENGATURAN_PHP = `<?php
+// pengaturan.php
+// Halaman Pengaturan Aplikasi (Kelola Kategori Transaksi dan Pilih Tema Warna)
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+$user_username = $_SESSION['username'] ?? 'user';
+$success_msg = "";
+$error_msg = "";
+
+// 1. Array Kategori Proteksi Sistem (Tidak boleh dihapus)
+$system_categories = ['Gaji', 'Belanja', 'Transportasi', 'Makan & Minum', 'Tagihan', 'Freelance', 'Lainnya'];
+
+// 2. Aksi: Ubah Tema Warna Aplikasi
+if (isset($_POST['update_theme'])) {
+    $new_theme = mysqli_real_escape_string($koneksi, $_POST['theme'] ?? 'slate');
+    $valid_themes = ['slate', 'emerald', 'violet', 'crimson', 'amber'];
+    
+    if (in_array($new_theme, $valid_themes)) {
+        $db_username_escaped = mysqli_real_escape_string($koneksi, $user_username);
+        $update_query = "UPDATE users SET theme = '$new_theme' WHERE username = '$db_username_escaped'";
+        
+        if (mysqli_query($koneksi, $update_query)) {
+            $_SESSION['theme'] = $new_theme;
+            $success_msg = "Tema warna aplikasi berhasil diperbarui menjadi " . ucwords($new_theme) . "!";
+        } else {
+            $error_msg = "Gagal memperbarui tema di database.";
+        }
+    } else {
+        $error_msg = "Pilihan tema tidak valid.";
+    }
+}
+
+// 3. Aksi: Tambah Kategori Baru
+if (isset($_POST['add_category'])) {
+    $new_cat = trim($_POST['nama_kategori'] ?? '');
+    $new_cat_clean = htmlspecialchars($new_cat);
+    
+    if (empty($new_cat)) {
+        $error_msg = "Nama kategori tidak boleh kosong.";
+    } else {
+        $new_cat_escaped = mysqli_real_escape_string($koneksi, $new_cat);
+        // Cek duplikasi
+        $check_query = mysqli_query($koneksi, "SELECT id FROM kategori WHERE nama = '$new_cat_escaped'");
+        if (mysqli_num_rows($check_query) > 0) {
+            $error_msg = "Kategori dengan nama '$new_cat_clean' sudah terdaftar.";
+        } else {
+            $insert_query = "INSERT INTO kategori (nama) VALUES ('$new_cat_escaped')";
+            if (mysqli_query($koneksi, $insert_query)) {
+                $success_msg = "Kategori baru '$new_cat_clean' berhasil ditambahkan!";
+            } else {
+                $error_msg = "Gagal menambahkan kategori ke database.";
+            }
+        }
+    }
+}
+
+// 4. Aksi: Hapus Kategori
+if (isset($_GET['delete_category'])) {
+    $cat_id = intval($_GET['delete_category']);
+    
+    // Cari nama kategori berdasarkan ID
+    $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori WHERE id = $cat_id");
+    if ($cat_query && mysqli_num_rows($cat_query) > 0) {
+        $cat_row = mysqli_fetch_assoc($cat_query);
+        $cat_nama = $cat_row['nama'];
+        
+        // Cek proteksi sistem
+        if (in_array($cat_nama, $system_categories)) {
+            $error_msg = "Kategori bawaan system '$cat_nama' dilindungi dan tidak boleh dihapus.";
+        } else {
+            // Cek apakah ada transaksi aktif menggunakan kategori ini
+            $cat_escaped = mysqli_real_escape_string($koneksi, $cat_nama);
+            $check_trans = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM transaksi WHERE kategori = '$cat_escaped'");
+            $trans_row = mysqli_fetch_assoc($check_trans);
+            
+            if ($trans_row['total'] > 0) {
+                $error_msg = "Kategori '$cat_nama' sedang digunakan oleh " . $trans_row['total'] . " transaksi aktif. Ubah atau hapus transaksi tersebut terlebih dahulu.";
+            } else {
+                // Eksekusi hapus aman
+                $delete_query = "DELETE FROM kategori WHERE id = $cat_id";
+                if (mysqli_query($koneksi, $delete_query)) {
+                    $success_msg = "Kategori '$cat_nama' berhasil dihapus dari database.";
+                } else {
+                    $error_msg = "Gagal menghapus kategori.";
+                }
+            }
+        }
+    } else {
+        $error_msg = "Kategori tidak ditemukan.";
+    }
+}
+
+// Ambil semua kategori untuk ditampilkan
+$all_categories = [];
+$res_categories = mysqli_query($koneksi, "SELECT * FROM kategori ORDER BY id ASC");
+if ($res_categories) {
+    while ($row = mysqli_fetch_assoc($res_categories)) {
+        $all_categories[] = $row;
+    }
+}
+
+// Set active page for sidebar
+$active_page = 'pengaturan';
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengaturan KeuanganKu - Pro</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            background-color: #ffffff;
+        }
+
+        .theme-selection-card {
+            border: 2px solid #f1f5f9;
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-selection-card:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+        }
+
+        .theme-selection-card.selected {
+            border-color: var(--primary-color, #2563eb);
+            background-color: rgba(var(--primary-rgb, 37, 99, 235), 0.03);
+            box-shadow: 0 4px 12px rgba(var(--primary-rgb, 37, 99, 235), 0.08);
+        }
+
+        .badge-theme-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .badge-cat {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 500;
+            font-size: 0.85rem;
+            padding: 8px 14px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .badge-cat-system {
+            background-color: #f8fafc;
+            color: #64748b;
+            border-style: dashed;
+        }
+    </style>
+</head>
+<body>
+
+<?php include 'sidebar.php'; ?>
+
+<!-- Content Area -->
+<div class="container-fluid py-2">
+    
+    <!-- Notifikasi Sukses / Gagal -->
+    <?php if (!empty($success_msg)): ?>
+        <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-xs p-3 mb-4 d-flex align-items-center" role="alert" style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2) !important;">
+            <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+            <div>
+                <strong class="text-success-800 d-block">Berhasil!</strong>
+                <span class="small text-slate-600"><?= $success_msg; ?></span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($error_msg)): ?>
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-xs p-3 mb-4 d-flex align-items-center" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2) !important;">
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
+            <div>
+                <strong class="text-danger-800 d-block">Terjadi Kesalahan!</strong>
+                <span class="small text-slate-600"><?= $error_msg; ?></span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <div class="row g-4">
+        <!-- Kolom Kiri: Ganti Tema Warna Aplikasi -->
+        <div class="col-lg-6">
+            <div class="card main-card p-4 p-md-5 h-100">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="p-3 rounded-4 bg-primary-subtle d-inline-block">
+                        <i class="bi bi-palette-fill text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold text-dark mb-0">Tema Warna Aplikasi</h4>
+                        <p class="text-muted small mb-0">Ubah nuansa visual dasbor & sidebar personal Anda</p>
+                    </div>
+                </div>
+
+                <form action="pengaturan.php" method="POST">
+                    <input type="hidden" name="update_theme" value="1">
+                    
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        <!-- Theme Slate -->
+                        <label class="theme-selection-card d-flex align-items-center justify-between w-full <?= ($current_theme === 'slate') ? 'selected' : ''; ?>" for="theme_slate">
+                            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                                <div class="badge-theme-dot" style="background-color: #2563eb;"></div>
+                                <div>
+                                    <h6 class="fw-bold text-slate-800 mb-0">Modern Slate (Default)</h6>
+                                    <span class="text-muted small">Warna biru korporat profesional dengan sidebar gelap</span>
+                                </div>
+                            </div>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="radio" name="theme" id="theme_slate" value="slate" <?= ($current_theme === 'slate') ? 'checked' : ''; ?> style="pointer-events: none;">
+                            </div>
+                        </label>
+
+                        <!-- Theme Emerald -->
+                        <label class="theme-selection-card d-flex align-items-center justify-between w-full <?= ($current_theme === 'emerald') ? 'selected' : ''; ?>" for="theme_emerald">
+                            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                                <div class="badge-theme-dot" style="background-color: #059669;"></div>
+                                <div>
+                                    <h6 class="fw-bold text-slate-800 mb-0">Emerald Forest</h6>
+                                    <span class="text-muted small">Sentuhan hijau segar yang melambangkan kemakmuran finansial</span>
+                                </div>
+                            </div>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="radio" name="theme" id="theme_emerald" value="emerald" <?= ($current_theme === 'emerald') ? 'checked' : ''; ?> style="pointer-events: none;">
+                            </div>
+                        </label>
+
+                        <!-- Theme Violet -->
+                        <label class="theme-selection-card d-flex align-items-center justify-between w-full <?= ($current_theme === 'violet') ? 'selected' : ''; ?>" for="theme_violet">
+                            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                                <div class="badge-theme-dot" style="background-color: #7c3aed;"></div>
+                                <div>
+                                    <h6 class="fw-bold text-slate-800 mb-0">Royal Violet</h6>
+                                    <span class="text-muted small">Nuansa ungu mewah dengan visual modern yang eksklusif</span>
+                                </div>
+                            </div>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="radio" name="theme" id="theme_violet" value="violet" <?= ($current_theme === 'violet') ? 'checked' : ''; ?> style="pointer-events: none;">
+                            </div>
+                        </label>
+
+                        <!-- Theme Crimson -->
+                        <label class="theme-selection-card d-flex align-items-center justify-between w-full <?= ($current_theme === 'crimson') ? 'selected' : ''; ?>" for="theme_crimson">
+                            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                                <div class="badge-theme-dot" style="background-color: #dc2626;"></div>
+                                <div>
+                                    <h6 class="fw-bold text-slate-800 mb-0">Charcoal Crimson</h6>
+                                    <span class="text-muted small">Aksen merah gelap elegan yang berani dan energik</span>
+                                </div>
+                            </div>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="radio" name="theme" id="theme_crimson" value="crimson" <?= ($current_theme === 'crimson') ? 'checked' : ''; ?> style="pointer-events: none;">
+                            </div>
+                        </label>
+
+                        <!-- Theme Amber -->
+                        <label class="theme-selection-card d-flex align-items-center justify-between w-full <?= ($current_theme === 'amber') ? 'selected' : ''; ?>" for="theme_amber">
+                            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                                <div class="badge-theme-dot" style="background-color: #d97706;"></div>
+                                <div>
+                                    <h6 class="fw-bold text-slate-800 mb-0">Amber Sunset</h6>
+                                    <span class="text-muted small">Warna jingga hangat yang bersahabat dan penuh semangat</span>
+                                </div>
+                            </div>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="radio" name="theme" id="theme_amber" value="amber" <?= ($current_theme === 'amber') ? 'checked' : ''; ?> style="pointer-events: none;">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary rounded-3 py-2.5 fw-bold shadow-sm">
+                            <i class="bi bi-check2-circle me-1.5"></i> Simpan Pilihan Tema Warna
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Manage Kategori Transaksi -->
+        <div class="col-lg-6">
+            <div class="card main-card p-4 p-md-5 h-100">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="p-3 rounded-4 bg-primary-subtle d-inline-block">
+                        <i class="bi bi-tag-fill text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold text-dark mb-0">Kategori Transaksi</h4>
+                        <p class="text-muted small mb-0">Kelola kategori aliran kas masuk dan keluar aplikasi Anda</p>
+                    </div>
+                </div>
+
+                <!-- Form: Tambah Kategori Baru -->
+                <form action="pengaturan.php" method="POST" class="mb-4 bg-light p-4 rounded-4 border border-light-subtle">
+                    <input type="hidden" name="add_category" value="1">
+                    <label for="nama_kategori" class="form-label fw-bold text-slate-800 mb-2">Tambah Kategori Baru</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-tags"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" id="nama_kategori" name="nama_kategori" placeholder="Contoh: Hiburan, Investasi" required maxlength="50">
+                        <button type="submit" class="btn btn-primary px-4 fw-bold">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Tambah
+                        </button>
+                    </div>
+                    <div class="form-text text-muted mt-2 small">Nama kategori bersifat unik dan maksimal 50 karakter.</div>
+                </form>
+
+                <!-- Daftar Kategori Aktif -->
+                <h6 class="fw-bold text-dark mb-3">Daftar Kategori Terdaftar</h6>
+                <div class="d-flex flex-wrap gap-2.5 overflow-auto max-h-96 pr-1">
+                    <?php if (empty($all_categories)): ?>
+                        <p class="text-muted mb-0 small italic">Belum ada kategori terdaftar.</p>
+                    <?php else: ?>
+                        <?php foreach ($all_categories as $cat): ?>
+                            <?php 
+                            $is_system = in_array($cat['nama'], $system_categories); 
+                            $badge_class = $is_system ? 'badge-cat badge-cat-system' : 'badge-cat';
+                            ?>
+                            <div class="<?= $badge_class; ?>">
+                                <span><?= htmlspecialchars($cat['nama']); ?></span>
+                                <?php if ($is_system): ?>
+                                    <span class="badge bg-secondary rounded-2" style="font-size: 0.65rem; padding: 2px 4px; opacity: 0.85;">System</span>
+                                <?php else: ?>
+                                    <a href="pengaturan.php?delete_category=<?= $cat['id']; ?>" class="text-danger hover:text-dark-danger transition-colors" onclick="return confirm('Apakah Anda yakin ingin menghapus kategori \'<?= htmlspecialchars($cat['nama']); ?>\'?');" title="Hapus Kategori">
+                                        <i class="bi bi-trash3-fill" style="font-size: 0.85rem;"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer area -->
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Penanganan interaksi UI klik pada kartu seleksi tema kustom agar radio otomatis terceklis
+    document.querySelectorAll('.theme-selection-card').forEach(card => {
+        card.addEventListener('click', function() {
+            // Uncheck other selections visually
+            document.querySelectorAll('.theme-selection-card').forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Check the internal radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+        });
+    });
+</script>
+</body>
+</html>`;
+
 
