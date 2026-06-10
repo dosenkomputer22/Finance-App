@@ -80,7 +80,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-<div class="container py-5" style="max-width: 600px;">
+<?php
+$active_page = 'kelola_user';
+include 'sidebar.php';
+?>
+
+<div class="container py-2" style="max-width: 600px;">
     <div class="card border-0 rounded-4 shadow-lg p-3">
         <div class="card-body">
             <h4 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Pengguna</h4>
@@ -124,7 +129,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         </div>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 </body>
 </html>

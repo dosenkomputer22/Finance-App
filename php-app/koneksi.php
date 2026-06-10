@@ -144,4 +144,33 @@ if (!$table_check_transaksi) {
     ON DUPLICATE KEY UPDATE id=id;";
     @mysqli_query($koneksi, $sql_insert_dummy_transaksi);
 }
+
+// 5. Pastikan kolom theme ada di tabel users (untuk mendukung fitur ubah tema kustom)
+$col_check_theme = @mysqli_query($koneksi, "SHOW COLUMNS FROM `users` LIKE 'theme'");
+if ($col_check_theme && mysqli_num_rows($col_check_theme) == 0) {
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `theme` VARCHAR(30) NOT NULL DEFAULT 'slate'");
+}
+
+// 6. Pastikan tabel kategori transaksi ada
+$table_check_kategori = @mysqli_query($koneksi, "SELECT 1 FROM `kategori` LIMIT 1");
+if (!$table_check_kategori) {
+    $sql_table_kategori = "CREATE TABLE IF NOT EXISTS `kategori` (
+      `id` INT(11) NOT NULL AUTO_INCREMENT,
+      `nama` VARCHAR(100) NOT NULL UNIQUE,
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_kategori);
+
+    // Isi Default Kategori
+    $sql_insert_default_kategori = "INSERT INTO `kategori` (`nama`) VALUES
+    ('Gaji'),
+    ('Belanja'),
+    ('Transportasi'),
+    ('Makan & Minum'),
+    ('Tagihan'),
+    ('Freelance'),
+    ('Lainnya')
+    ON DUPLICATE KEY UPDATE nama=nama;";
+    @mysqli_query($koneksi, $sql_insert_default_kategori);
+}
 ?>

@@ -99,16 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #0f172a !important;">
-    <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="index.php">
-            <i class="bi bi-wallet2 text-primary me-2 fs-4"></i>
-            KeuanganKu <span class="badge bg-primary ms-2 fs-6">PHP + MySQL</span>
-        </a>
-    </div>
-</nav>
-
-<div class="container pb-5">
+<?php
+$active_page = 'tambah_transaksi';
+include 'sidebar.php';
+?>
     <div class="card main-card p-4 p-sm-5 mt-3">
         <div class="d-flex items-center gap-2 mb-4">
             <a href="index.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
@@ -149,13 +143,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label for="kategori" class="form-label">Kategori Transaksi</label>
                 <select class="form-select" id="kategori" name="kategori" required>
-                    <option value="Gaji">Gaji / Penghasilan</option>
-                    <option value="Belanja">Belanja Bulanan</option>
-                    <option value="Transportasi">Transportasi / Bensin</option>
-                    <option value="Makan & Minum">Makan & Minum</option>
-                    <option value="Tagihan">Tagihan WiFi / Listrik</option>
-                    <option value="Freelance">Freelance / Projek</option>
-                    <option value="Lainnya" selected>Lainnya</option>
+                    <?php
+                    $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori ORDER BY id ASC");
+                    if ($cat_query) {
+                        while ($cat_row = mysqli_fetch_assoc($cat_query)) {
+                            $cat_name = htmlspecialchars($cat_row['nama']);
+                            $selected = ($cat_name === 'Lainnya') ? 'selected' : '';
+                            echo "<option value=\"$cat_name\" $selected>$cat_name</option>";
+                        }
+                    } else {
+                        echo '<option value="Lainnya" selected>Lainnya</option>';
+                    }
+                    ?>
                 </select>
             </div>
 
@@ -177,7 +176,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </button>
         </form>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

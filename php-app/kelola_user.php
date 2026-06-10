@@ -29,37 +29,10 @@ $result_users = mysqli_query($koneksi, $query_users);
 </head>
 <body>
 
-<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
-    <div class="container">
-        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
-            <i class="bi bi-wallet2 me-2 text-primary"></i>
-            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
-        </span>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
-            <ul class="navbar-nav gap-1 my-2 my-sm-0">
-                <li class="nav-item">
-                    <a href="index.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a href="kelola_user.php" class="nav-link active fw-bold text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
-                </li>
-            </ul>
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
-                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
-                </span>
-                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar?');">
-                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
-                </a>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<div class="container py-2">
+<?php
+$active_page = 'kelola_user';
+include 'sidebar.php';
+?>
     <?php if (isset($_GET['msg'])): ?>
         <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-xs border-0 py-3 mb-4" role="alert">
             <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i>
@@ -159,7 +132,15 @@ $result_users = mysqli_query($koneksi, $query_users);
             </div>
         </div>
     </div>
-</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
