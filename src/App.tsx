@@ -11,7 +11,7 @@ import {
   HelpCircle,
   Database
 } from 'lucide-react';
-import { Transaction, DbConfig, ActiveTab } from './types';
+import { Transaction, DbConfig, ActiveTab, UserSim } from './types';
 
 // Importing Custom Modular Components
 import Sidebar from './components/Sidebar';
@@ -23,16 +23,24 @@ import AddTransactionView from './components/AddTransactionView';
 import ReportsView from './components/ReportsView';
 import CategoriesView from './components/CategoriesView';
 import SettingsView from './components/SettingsView';
+import PhpLoginSimulation from './components/PhpLoginSimulation';
+import UsersView from './components/UsersView';
 
 // PHP Code Templates
 import { 
   getKoneksiCode, 
   getSqlSchema, 
   INDEX_PHP, 
+  LOGIN_PHP,
+  LOGOUT_PHP,
   TAMBAH_PHP, 
   EDIT_PHP, 
   HAPUS_PHP, 
-  README_CPANEL 
+  README_CPANEL,
+  KELOLA_USER_PHP,
+  TAMBAH_USER_PHP,
+  EDIT_USER_PHP,
+  HAPUS_USER_PHP
 } from './php-templates';
 
 // Primary default transactions history
@@ -112,10 +120,38 @@ export default function App() {
   const [isZipping, setIsZipping] = useState(false);
   const [zipSuccess, setZipSuccess] = useState(false);
 
+  // --- Persistent User Management ---
+  const [usersSim, setUsersSim] = useState<UserSim[]>(() => {
+    const saved = localStorage.getItem('keuangan_users_sim');
+    return saved ? JSON.parse(saved) : [
+      { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' },
+      { id: '2', username: 'budi', nama: 'Budi Santoso', role: 'admin' }
+    ];
+  });
+
+  const [currentUser, setCurrentUser] = useState<UserSim>(() => {
+    const saved = localStorage.getItem('keuangan_current_user_sim');
+    return saved ? JSON.parse(saved) : { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' };
+  });
+
+  // --- PHP Login simulation session state ---
+  const [isLoggedInSim, setIsLoggedInSim] = useState<boolean>(() => {
+    const saved = localStorage.getItem('keuangan_is_logged_in_sim');
+    return saved === 'true'; // defaults to false to activate the login page
+  });
+
   // --- Synchronize state changes to Local Storage ---
   useEffect(() => {
     localStorage.setItem('keuangan_transactions', JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('keuangan_users_sim', JSON.stringify(usersSim));
+  }, [usersSim]);
+
+  useEffect(() => {
+    localStorage.setItem('keuangan_current_user_sim', JSON.stringify(currentUser));
+  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem('keuangan_categories', JSON.stringify(categories));
@@ -200,10 +236,36 @@ export default function App() {
     }
   };
 
+  const handleAddUser = (username: string, nama: string, role: 'admin' | 'superadmin') => {
+    const newUser: UserSim = {
+      id: Date.now().toString(),
+      username,
+      nama,
+      role
+    };
+    setUsersSim([...usersSim, newUser]);
+  };
+
+  const handleUpdateUser = (id: string, username: string, nama: string, role: 'admin' | 'superadmin') => {
+    setUsersSim(usersSim.map(u => u.id === id ? { ...u, username, nama, role } : u));
+    if (currentUser.id === id) {
+      setCurrentUser({ ...currentUser, username, nama, role });
+    }
+  };
+
+  const handleDeleteUser = (id: string) => {
+    setUsersSim(usersSim.filter(u => u.id !== id));
+  };
+
   const handleResetData = () => {
     if (confirm('Apakah Anda yakin ingin me-restore catatan transaksi bawaan? Ini akan menghapus data simulasi saat ini.')) {
       setTransactions(DUMMY_TRANSACTIONS);
       setCategories(DEFAULT_CATEGORIES);
+      setUsersSim([
+        { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' },
+        { id: '2', username: 'budi', nama: 'Budi Santoso', role: 'admin' }
+      ]);
+      setCurrentUser({ id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' });
       setDbConfig({
         host: 'localhost',
         user: 'u1234567_dbuser',
@@ -223,12 +285,24 @@ export default function App() {
         return getSqlSchema(dbConfig);
       case 'index.php':
         return INDEX_PHP;
+      case 'login.php':
+        return LOGIN_PHP;
+      case 'logout.php':
+        return LOGOUT_PHP;
       case 'tambah.php':
         return TAMBAH_PHP;
       case 'edit.php':
         return EDIT_PHP;
       case 'hapus.php':
         return HAPUS_PHP;
+      case 'kelola_user.php':
+        return KELOLA_USER_PHP;
+      case 'tambah_user.php':
+        return TAMBAH_USER_PHP;
+      case 'edit_user.php':
+        return EDIT_USER_PHP;
+      case 'hapus_user.php':
+        return HAPUS_USER_PHP;
       case 'README.md':
         return README_CPANEL;
       default:
@@ -259,9 +333,15 @@ export default function App() {
     zip.file('koneksi.php', koneksiCode);
     zip.file('db.sql', sqlSchema);
     zip.file('index.php', INDEX_PHP);
+    zip.file('login.php', LOGIN_PHP);
+    zip.file('logout.php', LOGOUT_PHP);
     zip.file('tambah.php', TAMBAH_PHP);
     zip.file('edit.php', EDIT_PHP);
     zip.file('hapus.php', HAPUS_PHP);
+    zip.file('kelola_user.php', KELOLA_USER_PHP);
+    zip.file('tambah_user.php', TAMBAH_USER_PHP);
+    zip.file('edit_user.php', EDIT_USER_PHP);
+    zip.file('hapus_user.php', HAPUS_USER_PHP);
     zip.file('README.md', README_CPANEL);
 
     // Compile into blob payload and trigger anchor injection download
@@ -281,6 +361,22 @@ export default function App() {
       setIsZipping(false);
     });
   };
+
+  if (!isLoggedInSim) {
+    return (
+      <PhpLoginSimulation
+        appName={appName}
+        appLogo={appLogo}
+        appLogoColor={appLogoColor}
+        users={usersSim}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setIsLoggedInSim(true);
+          localStorage.setItem('keuangan_is_logged_in_sim', 'true');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#f8fafc] font-sans antialiased text-slate-800 overflow-hidden">
@@ -307,6 +403,11 @@ export default function App() {
           setIsMobileOpen={setIsMobileMenuOpen} 
           isSidebarCollapsed={isSidebarCollapsed}
           setIsSidebarCollapsed={setIsSidebarCollapsed}
+          currentUser={currentUser}
+          onLogoutSim={() => {
+            setIsLoggedInSim(false);
+            localStorage.setItem('keuangan_is_logged_in_sim', 'false');
+          }}
         />
 
         {/* Dynamic Main Body with responsive scrolls */}
@@ -430,6 +531,18 @@ export default function App() {
                   setDashboardHeaderTitle={setDashboardHeaderTitle}
                   dashboardHeaderSubtitle={dashboardHeaderSubtitle}
                   setDashboardHeaderSubtitle={setDashboardHeaderSubtitle}
+                />
+              )}
+
+              {/* TAB 7: MANAGE SIMULATED USERS & ROLES */}
+              {activeTab === 'users' && (
+                <UsersView 
+                  users={usersSim}
+                  onAddUser={handleAddUser}
+                  onUpdateUser={handleUpdateUser}
+                  onDeleteUser={handleDeleteUser}
+                  currentUser={currentUser}
+                  appLogoColor={appLogoColor}
                 />
               )}
             </motion.div>

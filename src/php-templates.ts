@@ -4,24 +4,151 @@
 import { DbConfig } from './types';
 
 export function getKoneksiCode(config: DbConfig): string {
+  const dbName = config.name || 'keuangan_db';
   return `<?php
 // koneksi.php
 // Konfigurasi koneksi database untuk cPanel / Shared Hosting maupun Localhost
+// Dilengkapi dengan sistem Auto-Installer pintar untuk uji coba lokal (XAMPP / Laragon)
 
-$db_host = "${config.host || 'localhost'}";      // Umumnya 'localhost' di sebagian besar cPanel
-$db_user = "${config.user || 'db_user_anda'}";   // Username Database MySQL yang Anda buat di cPanel
-$db_pass = "${config.pass || 'db_pass_anda'}";   // Password User Database tersebut
-$db_name = "${config.name || 'keuangan_db'}";    // Nama Database yang Anda buat di cPanel
+$db_host = "${config.host || 'localhost'}";
+$db_user = "${config.user || 'root'}";       // Default XAMPP: root
+$db_pass = "${config.pass || ''}";           // Default XAMPP: kosong ""
+$db_name = "${dbName}";
 
-// Melakukan koneksi ke server MySQL
-$koneksi = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+// Nonaktifkan mysqli reporting exception default agar kita bisa handle error secara visual & elegan
+mysqli_report(MYSQLI_REPORT_OFF);
 
-// Setting charset ke UTF-8 agar mendukung karakter penulisan khusus secara aman
+// Mencoba koneksi ke server MySQL tanpa memilih database terlebih dahulu
+$koneksi = @mysqli_connect($db_host, $db_user, $db_pass);
+
+if (!$koneksi) {
+    // Jika koneksi ke server MySQL gagal (misal XAMPP belum aktif)
+    die("
+    <div style='font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 60px auto; padding: 30px; border-radius: 16px; background-color: #fef2f2; border: 1px solid #fca5a5; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);'>
+        <div style='display: flex; align-items: center; margin-bottom: 20px;'>
+            <div style='background-color: #fee2e2; padding: 10px; border-radius: 50%; margin-right: 15px; color: #ef4444;'>
+                <svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2'></polygon><line x1='12' y1='8' x2='12' y2='12'></line><line x1='12' y1='16' x2='12.01' y2='16'></line></svg>
+            </div>
+            <h2 style='color: #991b1b; margin: 0; font-weight: 700; font-size: 22px;'>Gagal Menghubungi Server MySQL!</h2>
+        </div>
+        
+        <p style='color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 20px;'>
+            Aplikasi <strong>KeuanganKu</strong> tidak dapat terhubung ke server database MySQL Anda menggunakan kredensial di <code>koneksi.php</code>.
+        </p>
+        
+        <div style='background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #f3f4f6; font-family: monospace; font-size: 13.5px; color: #b91c1c; margin-bottom: 25px;'>
+            <strong>Detail Masalah:</strong> " . mysqli_connect_error() . "
+        </div>
+        
+        <h3 style='color: #1f2937; margin-bottom: 10px; font-size: 16px; font-weight: 600;'>Langkah Solusi untuk XAMPP:</h3>
+        <ol style='color: #4b5563; font-size: 14.5px; line-height: 1.6; padding-left: 20px; margin-bottom: 25px;'>
+            <li style='margin-bottom: 8px;'>Pastikan aplikasi <strong>XAMPP Control Panel</strong> Anda sudah dibuka.</li>
+            <li style='margin-bottom: 8px;'>Klik tombol <strong>Start</strong> di samping modul <strong>Apache</strong> dan <strong>MySQL</strong> hingga berwarna hijau.</li>
+            <li style='margin-bottom: 8px;'>Buka file <code>koneksi.php</code> dan pastikan kredensial di bawah sudah cocok:
+                <ul style='padding-left: 20px; margin-top: 5px; list-style-type: circle;'>
+                    <li><code>\$db_host = \"$db_host\";</code></li>
+                    <li><code>\$db_user = \"root\";</code> (Default XAMPP)</li>
+                    <li><code>\$db_pass = \"\";</code> (Default XAMPP password dikosongkan)</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <button onclick='window.location.reload()' style='background-color: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background-color 0.2s;'>
+            Segarkan Halaman & Hubungkan Kembali
+        </button>
+    </div>");
+}
+
+// Atur Charset Koneksi ke UTF-8
 mysqli_set_charset($koneksi, "utf8mb4");
 
-// Verifikasi keberhasilan koneksi
-if (mysqli_connect_errno()) {
-    die("Koneksi database MySQL gagal dilakukan: " . mysqli_connect_error());
+// Coba pilih database. Jika belum ada, lakukan Auto-Installation database & tabel pintar
+$db_check = @mysqli_select_db($koneksi, $db_name);
+
+if (!$db_check) {
+    // Database tidak ditemukan! Kita coba buat secara otomatis agar mempermudah pengguna XAMPP
+    $sql_create_db = "CREATE DATABASE IF NOT EXISTS \`$db_name\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci";
+    
+    if (@mysqli_query($koneksi, $sql_create_db)) {
+        // Berhasil membuat database baru! Sekarang hubungkan ke database tersebut
+        mysqli_select_db($koneksi, $db_name);
+    } else {
+        // Gagal membuat database otomatis karena hak akses dibatasi (misal di cPanel Shared Hosting)
+        die("
+        <div style='font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 60px auto; padding: 30px; border-radius: 16px; background-color: #fffbeb; border: 1px solid #fcd34d; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);'>
+            <div style='display: flex; align-items: center; margin-bottom: 20px;'>
+                <div style='background-color: #fef3c7; padding: 10px; border-radius: 50%; margin-right: 15px; color: #d97706;'>
+                    <svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'></circle><line x1='12' y1='8' x2='12' y2='12'></line><line x1='12' y1='16' x2='12.01' y2='16'></line></svg>
+                </div>
+                <h2 style='color: #92400e; margin: 0; font-weight: 700; font-size: 22px;'>Database '$db_name' Belum Ada!</h2>
+            </div>
+            
+            <p style='color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 20px;'>
+                Database dengan nama <strong>$db_name</strong> tidak ditemukan pada server lokal/hosting Anda dan hak akses database Anda membatasi pembuatan otomatis.
+            </p>
+            
+            <h3 style='color: #1f2937; margin-bottom: 10px; font-size: 16px; font-weight: 600;'>Tuntunan Import Manual lewat phpMyAdmin:</h3>
+            <ol style='color: #4b5563; font-size: 14.5px; line-height: 1.6; padding-left: 20px; margin-bottom: 25px;'>
+                <li style='margin-bottom: 8px;'>Buka browser dan arahkan ke alamat <strong><a href='http://localhost/phpmyadmin/' target='_blank' style='color: #d97706; text-decoration: underline;'>http://localhost/phpmyadmin/</a></strong>.</li>
+                <li style='margin-bottom: 8px;'>Buat database baru dengan mengklik menu <strong>Baru / New</strong> di sisi kiri lalu beri nama persis: <strong>$db_name</strong>.</li>
+                <li style='margin-bottom: 8px;'>Pilih database <strong>$db_name</strong> tersebut, lalu masuk ke menu tab <strong>Import</strong> di bagian atas.</li>
+                <li style='margin-bottom: 8px;'>Pilih file database <strong>db.sql</strong> yang ada dalam folder projek Anda, lalu tekan tombol <strong>Kirim / Go / Import</strong> di bagian bawah.</li>
+            </ol>
+            
+            <button onclick='window.location.reload()' style='background-color: #d97706; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background-color 0.2s;'>
+                Saya Sudah Import SQL, Hubungkan Kembali
+            </button>
+        </div>");
+    }
+}
+
+// Setelah database dipilih, pastikan tabel-tabel utama sudah ada atau di-install secara otomatis
+$table_check_users = @mysqli_query($koneksi, "SELECT 1 FROM \`users\` LIMIT 1");
+if (!$table_check_users) {
+    // 1. Buat Tabel Users
+    $sql_table_users = "CREATE TABLE IF NOT EXISTS \`users\` (
+      \`id\` INT(11) NOT NULL AUTO_INCREMENT,
+      \`username\` VARCHAR(50) NOT NULL UNIQUE,
+      \`password\` VARCHAR(255) NOT NULL,
+      \`nama\` VARCHAR(100) NOT NULL,
+      \`role\` VARCHAR(20) NOT NULL DEFAULT 'admin',
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_users);
+
+    // 2. Isi Akun Default (Password: admin123)
+    $hashed_pw = password_hash('admin123', PASSWORD_DEFAULT);
+    $sql_insert_users = "INSERT INTO \`users\` (\`id\`, \`username\`, \`password\`, \`nama\`, \`role\`) VALUES
+    (1, 'admin', '$hashed_pw', 'Administrator Keuangan', 'superadmin'),
+    (2, 'budi', '$hashed_pw', 'Budi Santoso', 'admin')
+    ON DUPLICATE KEY UPDATE id=id;";
+    @mysqli_query($koneksi, $sql_insert_users);
+}
+
+$table_check_transaksi = @mysqli_query($koneksi, "SELECT 1 FROM \`transaksi\` LIMIT 1");
+if (!$table_check_transaksi) {
+    // 3. Buat Tabel Transaksi
+    $sql_table_transaksi = "CREATE TABLE IF NOT EXISTS \`transaksi\` (
+      \`id\` INT(11) NOT NULL AUTO_INCREMENT,
+      \`tanggal\` DATE NOT NULL,
+      \`keterangan\` VARCHAR(255) NOT NULL,
+      \`kategori\` VARCHAR(100) NOT NULL DEFAULT 'Lainnya',
+      \`jenis\` ENUM('pemasukan','pengeluaran') NOT NULL,
+      \`jumlah\` INT(11) NOT NULL,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_transaksi);
+
+    // 4. Isi Data Transaksi Bawaan
+    $sql_insert_dummy_transaksi = "INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`jenis\`, \`jumlah\`) VALUES
+    (1, '2026-06-01', 'Gaji Bulanan Utama', 'Gaji', 'pemasukan', 5000000),
+    (2, '2026-06-02', 'Membeli Hosting & Domain CPanel', 'Tagihan', 'pengeluaran', 250000),
+    (3, '2026-06-03', 'Projek Pembuatan Jasa Website UMKM', 'Freelance', 'pemasukan', 1750000),
+    (4, '2026-06-05', 'Membayar Tagihan Listrik Bulanan', 'Tagihan', 'pengeluaran', 190000),
+    (5, '2026-06-06', 'Membeli Buku Panduan Pemrograman PHP', 'Belanja', 'pengeluaran', 95000),
+    (6, '2026-06-08', 'Menerima Komisi Afiliasi Landing Page', 'Freelance', 'pemasukan', 600000)
+    ON DUPLICATE KEY UPDATE id=id;";
+    @mysqli_query($koneksi, $sql_insert_dummy_transaksi);
 }
 ?>`;
 }
@@ -29,13 +156,30 @@ if (mysqli_connect_errno()) {
 export function getSqlSchema(config: DbConfig): string {
   const dbName = config.name || 'keuangan_db';
   return `-- db.sql
--- Script SQL Pembuatan Database & Tabel Transaksi Keuangan
+-- Script SQL Pembuatan Database, Tabel Pengguna (Login) & Tabel Transaksi Keuangan
 
 -- Buat database jika dijalankan di localhost (Di cPanel biasanya database dibuat manual lewat menu 'MySQL Database Wizard' lalu jalankan script ini)
 CREATE DATABASE IF NOT EXISTS \`${dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE \`${dbName}\`;
 
--- Struktur Tabel transaksi (Dilengkapi dengan Kolom Kategori sesuai spesifikasi)
+-- Struktur Tabel users untuk Pengamanan Login
+CREATE TABLE IF NOT EXISTS \`users\` (
+  \`id\` INT(11) NOT NULL AUTO_INCREMENT,
+  \`username\` VARCHAR(50) NOT NULL UNIQUE,
+  \`password\` VARCHAR(255) NOT NULL,
+  \`nama\` VARCHAR(100) NOT NULL,
+  \`role\` VARCHAR(20) NOT NULL DEFAULT 'admin',
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Menambahkan Akun Default (username: admin -> Super Admin, username: budi -> Admin)
+-- Password default adalah admin123 (telah di-hash menggunakan bcrypt password_hash())
+INSERT INTO \`users\` (\`id\`, \`username\`, \`password\`, \`nama\`, \`role\`) VALUES
+(1, 'admin', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Administrator Keuangan', 'superadmin'),
+(2, 'budi', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Budi Santoso', 'admin')
+ON DUPLICATE KEY UPDATE id=id;
+
+-- Struktur Tabel transaksi
 CREATE TABLE IF NOT EXISTS \`transaksi\` (
   \`id\` INT(11) NOT NULL AUTO_INCREMENT,
   \`tanggal\` DATE NOT NULL,
@@ -46,7 +190,7 @@ CREATE TABLE IF NOT EXISTS \`transaksi\` (
   PRIMARY KEY (\`id\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Menambahkan Data Dummy Awal (Dilengkapi Kolom Kategori sesuai screenshot referensi)
+-- Menambahkan Data Dummy Awal
 INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`jenis\`, \`jumlah\`) VALUES
 (1, '2026-05-23', 'Gaji Bulanan', 'Gaji', 'pemasukan', 10000000),
 (2, '2026-05-23', 'Belanja Bulanan', 'Belanja', 'pengeluaran', 1250000),
@@ -59,7 +203,13 @@ INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`
 
 export const INDEX_PHP = `<?php
 // index.php
-// Halaman dashboard utama, ringkasan saldo keuangan, dan tabel transaksi terpadu
+// Halaman dashboard utama dengan proteksi session login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
@@ -180,12 +330,33 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark py-3 mb-4 shadow-sm" style="background-color: #131926 !important;">
+<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
     <div class="container">
-        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center">
+        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
             <i class="bi bi-wallet2 me-2 text-primary"></i>
-            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.1</span>
+            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
         </span>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav gap-1 my-2 my-sm-0">
+                <li class="nav-item">
+                    <a href="index.php" class="nav-link active fw-bold text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a href="kelola_user.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
+                </li>
+            </ul>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
+                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
+                </span>
+                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar dari PHP session ini?');">
+                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
+                </a>
+            </div>
+        </div>
     </div>
 </nav>
 
@@ -355,7 +526,13 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 
 export const TAMBAH_PHP = `<?php
 // tambah.php
-// Mengurus penambahan transaksi baru beserta validasi input server-side
+// Mengurus penambahan transaksi baru beserta validasi input server-side dengan proteksi login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
@@ -536,7 +713,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 export const EDIT_PHP = `<?php
 // edit.php
-// Mengedit transaksi yang sudah ada di database secara aman dengan Prepared Statements
+// Mengedit transaksi yang sudah ada di database secara aman dengan Prepared Statements dan proteksi login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
@@ -740,7 +923,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 export const HAPUS_PHP = `<?php
 // hapus.php
-// Memproses penghapusan denga keamanan parameterized query MySQLi dan mengalihkan ke dashboard
+// Memproses penghapusan denga keamanan parameterized query MySQLi dan proteksi login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
@@ -825,6 +1014,8 @@ Sebelum atau setelah mengunggah, Anda harus menyunting file koneksi database:
 2. Masuklah ke dalam direktori/folder bernama **public_html** (ini adalah folder publik tempat website Anda diakses).
 3. Unggah seluruh file PHP berikut langsung ke dalam \`public_html\`:
    - \`index.php\`
+   - \`login.php\`
+   - \`logout.php\`
    - \`tambah.php\`
    - \`edit.php\`
    - \`hapus.php\`
@@ -839,3 +1030,692 @@ Aplikasi Anda kini sudah siap dijalankan! Buka browser Anda dan akses domain web
 - \`http://nama-domain-anda.com/\` (jika di-upload langsung di folder utama \`public_html\`)
 - Atau \`http://nama-domain-anda.com/keuangan/\` (jika di-upload ke dalam subfolder baru bernama \`keuangan\` di dalam \`public_html\`).
 `;
+
+export const LOGIN_PHP = `<?php
+// login.php
+// Sistem Autentikasi Keamanan Pengguna - Memanfaatkan Session & Prepared Statements secara aman
+
+session_start();
+require_once 'koneksi.php';
+
+$error = '';
+
+// Jika user sudah login, langsung alihkan ke halaman utama dashboard
+if (isset($_SESSION['login']) && $_SESSION['login'] === true) {
+    header("Location: index.php");
+    exit();
+}
+
+// Memproses autentikasi form login
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+
+    if (empty($username) || empty($password)) {
+        $error = "Peringatan: Username dan password wajib diisi!";
+    } else {
+        // Gunakan Prepared Statement MySQLi untuk mencegah serangan SQL Injection
+        $query_user = "SELECT * FROM users WHERE username = ?";
+        $stmt_user = mysqli_prepare($koneksi, $query_user);
+
+        if ($stmt_user) {
+            mysqli_stmt_bind_param($stmt_user, "s", $username);
+            mysqli_stmt_execute($stmt_user);
+            $result_user = mysqli_stmt_get_result($stmt_user);
+
+            if ($row = mysqli_fetch_assoc($result_user)) {
+                // Verifikasi password hash aman (Bcrypt)
+                if (password_verify($password, $row['password'])) {
+                    $_SESSION['login'] = true;
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['username'] = $row['username'];
+                    $_SESSION['nama'] = $row['nama'];
+                    $_SESSION['role'] = $row['role'] ?? 'admin';
+
+                    header("Location: index.php");
+                    exit();
+                } else {
+                    $error = "Password salah! Silakan periksa kembali.";
+                }
+            } else {
+                // Fitur Fallback Otomatis: Jika database baru di-import dan belum di-seed,
+                // username: admin, password: admin123
+                if ($username === 'admin' && $password === 'admin123') {
+                    // Daftarkan otomatis ke database 'users' agar memudahkan testing siswa
+                    $hashed_pw = password_hash('admin123', PASSWORD_DEFAULT);
+                    $query_insert = "INSERT INTO users (username, password, nama, role) VALUES (?, ?, ?, 'superadmin')";
+                    $stmt_ins = mysqli_prepare($koneksi, $query_insert);
+                    if ($stmt_ins) {
+                        $nama_admin = "Administrator Keuangan";
+                        mysqli_stmt_bind_param($stmt_ins, "sss", $username, $hashed_pw, $nama_admin);
+                        mysqli_stmt_execute($stmt_ins);
+                        mysqli_stmt_close($stmt_ins);
+                    }
+
+                    $_SESSION['login'] = true;
+                    $_SESSION['username'] = 'admin';
+                    $_SESSION['nama'] = 'Administrator Keuangan';
+                    $_SESSION['role'] = 'superadmin';
+
+                    header("Location: index.php");
+                    exit();
+                } else {
+                    $error = "Username tidak terdaftar di sistem database!";
+                }
+            }
+            mysqli_stmt_close($stmt_user);
+        } else {
+            $error = "Masalah sistem: Gagal menyusun perintah prepared query database.";
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Pengguna - Sistem Catatan Keuangan</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #131926 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #f8fafc;
+        }
+        .login-card {
+            background-color: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            max-width: 430px;
+            width: 100%;
+            overflow: hidden;
+            padding: 2.5rem;
+        }
+        .form-control {
+            background-color: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+        .form-control:focus {
+            background-color: #1f2937;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.2);
+            color: #f8fafc;
+        }
+        .btn-login {
+            background-color: #2563eb;
+            border: none;
+            color: white;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            transition: all 0.25s ease;
+        }
+        .btn-login:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .brand-icon {
+            font-size: 2.8rem;
+            color: #3b82f6;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="text-center mb-4">
+        <div class="brand-icon">
+            <i class="bi bi-wallet2 text-primary"></i>
+        </div>
+        <h4 class="fw-black mb-1">Masuk Dashboard</h4>
+        <p class="text-muted small">Kelola arus kas & laporan keuangan secara aman</p>
+    </div>
+
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger px-3 py-2.5 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5;">
+            <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+            <div class="small fw-semibold"><?= htmlspecialchars($error); ?></div>
+        </div>
+    <?php endif; ?>
+
+    <form action="login.php" method="POST">
+        <div class="mb-3">
+            <label for="username" class="form-label text-secondary small fw-bold text-uppercase tracking-wider">Username</label>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Masukkan username admin" required autofocus>
+        </div>
+        
+        <div class="mb-4">
+            <label for="password" class="form-label text-secondary small fw-bold text-uppercase tracking-wider">Password</label>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Masukkan password admin" required>
+        </div>
+
+        <button type="submit" class="btn btn-login w-100 mb-3 text-uppercase tracking-wide">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Masuk Sekarang
+        </button>
+
+        <div class="text-center border-top border-slate-800 pt-3 mt-3">
+            <span class="text-muted small">Kredensial Default:<br><strong class="text-white">username: admin</strong> / <strong class="text-white">password: admin123</strong></span>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
+`;
+
+export const LOGOUT_PHP = `<?php
+// logout.php
+// Menghancurkan session login untuk memutus hubungan akses pengguna secara aman
+
+session_start();
+
+// Hapus seluruh variabel session
+$_SESSION = array();
+
+// Bersihkan session cookie di web browser pengguna
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
+}
+
+// Hancurkan session data di sisi server
+session_destroy();
+
+// Alihkan halaman ke form masuk login kembali
+header("Location: login.php");
+exit();
+?>`;
+
+export const KELOLA_USER_PHP = `<?php
+// kelola_user.php
+// Halaman tabel daftar user dan management akun dengan otorisasi Super Admin & Admin
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+// Ambil daftar seluruh user
+$query_users = "SELECT id, username, nama, role FROM users ORDER BY id ASC";
+$result_users = mysqli_query($koneksi, $query_users);
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Pengguna - KeuanganKu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; color: #334155; }
+        .main-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); background: #ffffff; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
+    <div class="container">
+        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
+            <i class="bi bi-wallet2 me-2 text-primary"></i>
+            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
+        </span>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav gap-1 my-2 my-sm-0">
+                <li class="nav-item">
+                    <a href="index.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a href="kelola_user.php" class="nav-link active fw-bold text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
+                </li>
+            </ul>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
+                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
+                </span>
+                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar?');">
+                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-2">
+    <?php if (isset($_GET['msg'])): ?>
+        <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-xs border-0 py-3 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i>
+            <?= htmlspecialchars($_GET['msg']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_GET['err'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 shadow-xs border-0 py-3 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-5 me-2"></i>
+            <?= htmlspecialchars($_GET['err']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Otorisasi Keterangan Sandbox -->
+    <div class="bg-indigo-50 border border-indigo-100 rounded-4 p-3.5 mb-4 d-flex align-items-start gap-3">
+        <i class="bi bi-shield-lock-fill text-indigo fs-4"></i>
+        <div>
+            <h6 class="fw-bold text-indigo-900 mb-1">Informasi Hak Otorisasi Peran (Role)</h6>
+            <p class="small text-indigo-700 mb-0 leading-relaxed">
+                Aplikasi ini mendukung tingkatan peran pengguna:<br>
+                1. <strong>Super Admin</strong>: Memiliki hak mutlak dalam menambah, mengedit, serta mendelete user.<br>
+                2. <strong>Admin</strong>: Dapat melihat daftar akun (Read-Only) tetapi tidak diizinkan mengubah susunan database user.
+            </p>
+        </div>
+    </div>
+
+    <!-- Panel Pengguna -->
+    <div class="card main-card">
+        <div class="card-header bg-white py-3.5 border-0 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-people text-primary fs-4 me-2"></i>
+                <h5 class="fw-bold mb-0">Manajemen Akses Pengguna</h5>
+            </div>
+            <div>
+                <?php if (($_SESSION['role'] ?? '') === 'superadmin'): ?>
+                    <a href="tambah_user.php" class="btn btn-primary rounded-3 px-3 py-2">
+                        <i class="bi bi-person-plus-fill me-1.5"></i>Tambah User Baru
+                    </a>
+                <?php else: ?>
+                    <button class="btn btn-outline-secondary rounded-3 px-3 py-2" disabled title="Hanya Super Admin yang diizinkan menambah user baru">
+                        <i class="bi bi-lock-fill me-1.5"></i>Tambah User (Disabled)
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 80px;">No</th>
+                            <th>Nama Lengkap</th>
+                            <th>Username</th>
+                            <th style="width: 180px;">Level Peran</th>
+                            <th class="text-center" style="width: 180px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $no = 1;
+                        while ($row = mysqli_fetch_assoc($result_users)): 
+                        ?>
+                            <tr>
+                                <td class="ps-4 fw-medium text-muted"><?= $no++; ?></td>
+                                <td><div class="fw-bold text-dark"><?= htmlspecialchars($row['nama']); ?></div></td>
+                                <td><span class="font-monospace text-secondary">@<?= htmlspecialchars($row['username']); ?></span></td>
+                                <td>
+                                    <?php if ($row['role'] === 'superadmin'): ?>
+                                        <span class="badge bg-indigo-subtle border border-indigo-200 text-indigo px-3 py-1.5 rounded-3 text-uppercase"><i class="bi bi-shield-fill me-1"></i>Super Admin</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary-subtle border border-secondary text-secondary px-3 py-1.5 rounded-3 text-uppercase"><i class="bi bi-person-fill me-1"></i>Admin</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if (($_SESSION['role'] ?? '') === 'superadmin'): ?>
+                                        <div class="btn-group gap-1.5">
+                                            <a href="edit_user.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-primary rounded-2" title="Edit Akun"><i class="bi bi-pencil-square"></i></a>
+                                            
+                                            <?php if ($row['id'] == ($_SESSION['user_id'] ?? 0) || $row['username'] === 'admin'): ?>
+                                                <button class="btn btn-sm btn-outline-secondary rounded-2" disabled title="Keamanan: Tidak diizinkan mendelete akun sendiri atau superadmin utama"><i class="bi bi-trash-fill"></i></button>
+                                            <?php else: ?>
+                                                <a href="hapus_user.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-danger rounded-2" onclick="return confirm('Apakah Anda yakin ingin mendelete user ini?');" title="Delete Akun"><i class="bi bi-trash"></i></a>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <button class="btn btn-sm btn-light rounded-3 text-muted" disabled><i class="bi bi-lock-fill me-1"></i>Terkunci</button>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>`;
+
+export const TAMBAH_USER_PHP = `<?php
+// tambah_user.php
+// Menambahkan akun pengguna baru dengan filtering role (Khusus Super Admin)
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+// Otorisasi ketat keamanan: Cek jika bukan superadmin
+if (($_SESSION['role'] ?? '') !== 'superadmin') {
+    header("Location: kelola_user.php?err=Akses ditolak! Hanya Super Admin yang berhak memproses aksi ini.");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+    $nama = trim($_POST['nama']);
+    $role = $_POST['role'] === 'superadmin' ? 'superadmin' : 'admin';
+
+    if (empty($username) || empty($password) || empty($nama)) {
+        $error = "Penyebab: Seluruh kolom form di bawah wajib dilengkapi!";
+    } elseif (strlen($username) < 4) {
+        $error = "Penyebab: Parameter username harus minimal terdiri dari 4 karakter!";
+    } else {
+        // Cek duplikasi username lewat prepared statement
+        $query_check = "SELECT id FROM users WHERE username = ?";
+        $stmt_check = mysqli_prepare($koneksi, $query_check);
+        mysqli_stmt_bind_param($stmt_check, "s", $username);
+        mysqli_stmt_execute($stmt_check);
+        mysqli_stmt_store_result($stmt_check);
+        
+        if (mysqli_stmt_num_rows($stmt_check) > 0) {
+            $error = "Penyebab: Username '@" . htmlspecialchars($username) . "' telah digunakan oleh akun lain!";
+            mysqli_stmt_close($stmt_check);
+        } else {
+            mysqli_stmt_close($stmt_check);
+            
+            // Masukkan data baru dengan password di-hash aman
+            $hashed_pw = password_hash($password, PASSWORD_DEFAULT);
+            $query_ins = "INSERT INTO users (username, password, nama, role) VALUES (?, ?, ?, ?)";
+            $stmt_ins = mysqli_prepare($koneksi, $query_ins);
+            
+            if ($stmt_ins) {
+                mysqli_stmt_bind_param($stmt_ins, "ssss", $username, $hashed_pw, $nama, $role);
+                if (mysqli_stmt_execute($stmt_ins)) {
+                    mysqli_stmt_close($stmt_ins);
+                    header("Location: kelola_user.php?msg=" . urlencode("User baru '$nama' berhasil dibuat ke database!"));
+                    exit();
+                } else {
+                    $error = "Gagal memproses pendaftaran user baru ke MySQL server.";
+                }
+            }
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Baru - Tambah Pengguna</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+    </style>
+</head>
+<body>
+
+<div class="container py-5" style="max-width: 600px;">
+    <div class="card border-0 rounded-4 shadow-lg p-3">
+        <div class="card-body">
+            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah User Baru</h4>
+            <p class="text-muted small">Daftarkan akun administrator baru ke dalam database keamanan server.</p>
+
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger py-2.5 rounded-3 border-0 small font-semibold mb-4">
+                    <i class="bi bi-info-circle-fill me-1.5"></i> <?= $error; ?>
+                </div>
+            <?php endif; ?>
+
+            <form action="tambah_user.php" method="POST">
+                <div class="mb-3">
+                    <label class="form-label text-slate-700 small fw-bold">Nama Lengkap</label>
+                    <input type="text" name="nama" class="form-control rounded-3" placeholder="Contoh: Andi Wijaya" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-slate-700 small fw-bold">Username Akun</label>
+                    <input type="text" name="username" class="form-control rounded-3 font-monospace" placeholder="andi_wi" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-slate-700 small fw-bold">Password Baru</label>
+                    <input type="password" name="password" class="form-control rounded-3" placeholder="Masukkan password rahasia" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-slate-700 small fw-bold">Level Peran (Role)</label>
+                    <select name="role" class="form-select rounded-3">
+                        <option value="admin">Admin (Hanya Melihat/Menulis Transaksi)</option>
+                        <option value="superadmin">Super Admin (Akses Mutlak Server)</option>
+                    </select>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="kelola_user.php" class="btn btn-outline-secondary rounded-3 px-4">Batal</a>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>`;
+
+export const EDIT_USER_PHP = `<?php
+// edit_user.php
+// Pembaruan data user, beserta password opsional (Khusus Super Admin)
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+if (($_SESSION['role'] ?? '') !== 'superadmin') {
+    header("Location: kelola_user.php?err=Hanya Super Admin yang berhak memodifikasi data user.");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+$id = $_GET['id'] ?? 0;
+
+// Cari data user tersebut
+$query_user = "SELECT * FROM users WHERE id = ?";
+$stmt_find = mysqli_prepare($koneksi, $query_user);
+mysqli_stmt_bind_param($stmt_find, "i", $id);
+mysqli_stmt_execute($stmt_find);
+$user_data = mysqli_stmt_get_result($stmt_find)->fetch_assoc();
+mysqli_stmt_close($stmt_find);
+
+if (!$user_data) {
+    header("Location: kelola_user.php?err=Data user tidak ditemukan!");
+    exit();
+}
+
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nama = trim($_POST['nama']);
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+    
+    // Cegah penurunan peran superadmin inti
+    if ($user_data['username'] === 'admin') {
+        $role = 'superadmin';
+    } else {
+        $role = $_POST['role'] === 'superadmin' ? 'superadmin' : 'admin';
+    }
+
+    if (empty($nama) || empty($username)) {
+        $error = "Kolom Nama dan Username dilarang dikosongkan!";
+    } else {
+        // Update query
+        if (!empty($password)) {
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $query_upd = "UPDATE users SET nama = ?, username = ?, password = ?, role = ? WHERE id = ?";
+            $stmt_upd = mysqli_prepare($koneksi, $query_upd);
+            mysqli_stmt_bind_param($stmt_upd, "ssssi", $nama, $username, $hashed, $role, $id);
+        } else {
+            $query_upd = "UPDATE users SET nama = ?, username = ?, role = ? WHERE id = ?";
+            $stmt_upd = mysqli_prepare($koneksi, $query_upd);
+            mysqli_stmt_bind_param($stmt_upd, "sssi", $nama, $username, $role, $id);
+        }
+
+        if (mysqli_stmt_execute($stmt_upd)) {
+            mysqli_stmt_close($stmt_upd);
+            header("Location: kelola_user.php?msg=" . urlencode("Data pengguna '$nama' sukses diperbarui!"));
+            exit();
+        } else {
+            $error = "Terjadi kegagalan koneksi database ketika memperbarui user.";
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Baru - Edit Pengguna</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style> body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; } </style>
+</head>
+<body>
+
+<div class="container py-5" style="max-width: 600px;">
+    <div class="card border-0 rounded-4 shadow-lg p-3">
+        <div class="card-body">
+            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Pengguna</h4>
+            <p class="text-muted small">Silakan sesuaikan pengaturan data user di bawah.</p>
+
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger font-semibold mb-4"><?= $error; ?></div>
+            <?php endif; ?>
+
+            <form action="edit_user.php?id=<?= $id; ?>" method="POST">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Nama Lengkap</label>
+                    <input type="text" name="nama" class="form-control rounded-3" value="<?= htmlspecialchars($user_data['nama']); ?>" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Username</label>
+                    <input type="text" name="username" class="form-control rounded-3 font-monospace" value="<?= htmlspecialchars($user_data['username']); ?>" required <?= $user_data['username'] === 'admin' ? 'readonly' : ''; ?>>
+                    <?php if ($user_data['username'] === 'admin'): ?>
+                        <div class="form-text text-danger small">Username admin utama dilarang diedit demi kestabilan.</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Password Baru (Bila Diganti)</label>
+                    <input type="password" name="password" class="form-control rounded-3" placeholder="Biarkan kosong jika tidak berencana diedit">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold">Level Peran (Role)</label>
+                    <select name="role" class="form-select rounded-3" <?= $user_data['username'] === 'admin' ? 'disabled' : ''; ?>>
+                        <option value="admin" <?= $user_data['role'] === 'admin' ? 'selected' : ''; ?>>Admin (Melihat/Menulis Transaksi)</option>
+                        <option value="superadmin" <?= $user_data['role'] === 'superadmin' ? 'selected' : ''; ?>>Super Admin (Akses Mutlak Server)</option>
+                    </select>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="kelola_user.php" class="btn btn-outline-secondary rounded-3 px-4">Batal</a>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>`;
+
+export const HAPUS_USER_PHP = `<?php
+// hapus_user.php
+// Menghapus akun dari database secara permanen (Khusus Super Admin)
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+if (($_SESSION['role'] ?? '') !== 'superadmin') {
+    header("Location: kelola_user.php?err=Akses ditolak! Anda bukan Super Admin!");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+$id = $_GET['id'] ?? 0;
+
+// Blokir penghapusan diri sendiri
+if ($id == ($_SESSION['user_id'] ?? 0)) {
+    header("Location: kelola_user.php?err=Keamanan: Anda dilarang mendelete akun sendiri!");
+    exit();
+}
+
+// Blokir penghapusan admin utama
+$query_check = "SELECT username FROM users WHERE id = ?";
+$stmt_check = mysqli_prepare($koneksi, $query_check);
+mysqli_stmt_bind_param($stmt_check, "i", $id);
+mysqli_stmt_execute($stmt_check);
+$username_res = mysqli_stmt_get_result($stmt_check)->fetch_assoc();
+mysqli_stmt_close($stmt_check);
+
+if ($username_res && $username_res['username'] === 'admin') {
+    header("Location: kelola_user.php?err=Keamanan: User admin utama dilarang dihapus!");
+    exit();
+}
+
+// Lakukan penghapusan secara aman lewat prepared statement
+$query_del = "DELETE FROM users WHERE id = ?";
+$stmt_del = mysqli_prepare($koneksi, $query_del);
+mysqli_stmt_bind_param($stmt_del, "i", $id);
+
+if (mysqli_stmt_execute($stmt_del)) {
+    mysqli_stmt_close($stmt_del);
+    header("Location: kelola_user.php?msg=User berhasil dihapus secara permanen dari server database!");
+    exit();
+} else {
+    header("Location: kelola_user.php?err=Database: Terjadi kegagalan memproses query penghapusan.");
+    exit();
+}
+?>`;
+

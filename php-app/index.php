@@ -1,6 +1,12 @@
 <?php
 // index.php
-// Halaman dashboard utama, ringkasan saldo keuangan, dan riwayat transaksi
+// Halaman dashboard utama dengan proteksi session login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
@@ -33,89 +39,121 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Keuangan Sederhana</title>
+    <title>KeuanganKu - Dashboard Keuangan</title>
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f3f4f6;
+            background-color: #f8fafc;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            color: #1f2937;
+            color: #334155;
         }
         .main-card {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
             background: #ffffff;
         }
         .v-card-sum {
             border: none;
-            border-radius: 12px;
+            border-radius: 16px;
             transition: all 0.25s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
         .v-card-sum:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
         }
         .bg-pemasukan {
-            background-color: #d1fae5 !important;
-            border-left: 5px solid #10b981;
+            background-color: #ffffff !important;
+            border-left: 6px solid #10b981;
         }
         .bg-pengeluaran {
-            background-color: #fee2e2 !important;
-            border-left: 5px solid #ef4444;
+            background-color: #ffffff !important;
+            border-left: 6px solid #ef4444;
         }
         .bg-saldo-surplus {
-            background-color: #e0f2fe !important;
-            border-left: 5px solid #0284c7;
+            background-color: #ffffff !important;
+            border-left: 6px solid #2563eb;
         }
         .bg-saldo-defisit {
-            background-color: #fef3c7 !important;
-            border-left: 5px solid #d97706;
+            background-color: #ffffff !important;
+            border-left: 6px solid #f59e0b;
         }
         .text-pemasukan {
-            color: #065f46 !important;
+            color: #10b981 !important;
         }
         .text-pengeluaran {
-            color: #991b1b !important;
+            color: #ef4444 !important;
         }
         .btn-add {
-            background-color: #1f2937;
+            background-color: #2563eb;
             color: #ffffff;
             border: none;
-            font-weight: 500;
+            font-weight: 600;
+            border-radius: 10px;
         }
         .btn-add:hover {
-            background-color: #111827;
+            background-color: #1d4ed8;
             color: #ffffff;
         }
         .badge-pemasukan {
-            background-color: #10b981;
-            color: #ffffff;
-            font-size: 0.8rem;
+            background-color: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            font-size: 0.75rem;
             padding: 0.4em 0.8em;
-            border-radius: 30px;
+            border-radius: 8px;
         }
         .badge-pengeluaran {
-            background-color: #ef4444;
-            color: #ffffff;
-            font-size: 0.8rem;
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-size: 0.75rem;
             padding: 0.4em 0.8em;
-            border-radius: 30px;
+            border-radius: 8px;
+        }
+        .badge-kategori {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            font-size: 0.75rem;
+            padding: 0.4em 0.8em;
+            border-radius: 8px;
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark py-3 mb-4 shadow">
+<nav class="navbar navbar-expand-sm navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #131926 !important;">
     <div class="container">
-        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center">
-            <i class="bi bi-piggy-bank-fill me-2 text-warning"></i>
-            Aplikasi Catatan Keuangan
+        <span class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center me-4">
+            <i class="bi bi-wallet2 me-2 text-primary"></i>
+            KeuanganKu <span class="badge bg-primary ms-2 fs-6">v1.2</span>
         </span>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav gap-1 my-2 my-sm-0">
+                <li class="nav-item">
+                    <a href="index.php" class="nav-link active fw-bold text-white"><i class="bi bi-grid-fill me-1"></i> Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a href="kelola_user.php" class="nav-link fw-bold text-white-50 hover:text-white"><i class="bi bi-people-fill me-1"></i> Kelola User</a>
+                </li>
+            </ul>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-white bg-white/10 px-3 py-1.5 rounded-3 text-xs d-inline font-monospace">
+                    <i class="bi bi-person-circle text-info me-1.5"></i><?= htmlspecialchars($_SESSION['nama'] ?? 'User'); ?> (<?= htmlspecialchars($_SESSION['role'] ?? 'admin'); ?>)
+                </span>
+                <a href="logout.php" class="btn btn-sm btn-danger rounded-3 px-3 py-1.5" onclick="return confirm('Apakah Anda yakin ingin keluar dari PHP session ini?');">
+                    <i class="bi bi-box-arrow-right me-1"></i>Keluar
+                </a>
+            </div>
+        </div>
     </div>
 </nav>
 
@@ -131,9 +169,9 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-uppercase small fw-bold text-muted d-block mb-1">Total Pemasukan</span>
-                            <span class="fs-3 fw-bold text-pemasukan"><?= rupiah($total_pemasukan); ?></span>
+                            <span class="fs-4 fw-black text-pemasukan"><?= rupiah($total_pemasukan); ?></span>
                         </div>
-                        <div class="rounded-circle bg-white p-2 text-center shadow-sm" style="width: 45px; height: 45px; line-height: 29px; color: #10b981;">
+                        <div class="rounded-circle bg-light p-2 text-center" style="width: 45px; height: 45px; color: #10b981;">
                             <i class="bi bi-graph-up-arrow fs-5"></i>
                         </div>
                     </div>
@@ -148,9 +186,9 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-uppercase small fw-bold text-muted d-block mb-1">Total Pengeluaran</span>
-                            <span class="fs-3 fw-bold text-pengeluaran"><?= rupiah($total_pengeluaran); ?></span>
+                            <span class="fs-4 fw-black text-pengeluaran"><?= rupiah($total_pengeluaran); ?></span>
                         </div>
-                        <div class="rounded-circle bg-white p-2 text-center shadow-sm" style="width: 45px; height: 45px; line-height: 29px; color: #ef4444;">
+                        <div class="rounded-circle bg-light p-2 text-center" style="width: 45px; height: 45px; color: #ef4444;">
                             <i class="bi bi-graph-down-arrow fs-5"></i>
                         </div>
                     </div>
@@ -163,17 +201,17 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
             <?php 
             $is_surplus = $saldo_akhir >= 0;
             $bg_saldo_style = $is_surplus ? 'bg-saldo-surplus' : 'bg-saldo-defisit';
-            $text_saldo_style = $is_surplus ? 'text-primary' : 'text-warning-emphasis';
-            $icon_saldo_color = $is_surplus ? '#0284c7' : '#d97706';
+            $text_saldo_style = $is_surplus ? 'text-primary' : 'text-warning';
+            $icon_saldo_color = $is_surplus ? '#2563eb' : '#f59e0b';
             ?>
             <div class="card v-card-sum <?= $bg_saldo_style; ?> h-100 p-3">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-uppercase small fw-bold text-muted d-block mb-1">Saldo Akhir</span>
-                            <span class="fs-3 fw-bold <?= $text_saldo_style; ?>"><?= rupiah($saldo_akhir); ?></span>
+                            <span class="fs-4 fw-black <?= $text_saldo_style; ?>"><?= rupiah($saldo_akhir); ?></span>
                         </div>
-                        <div class="rounded-circle bg-white p-2 text-center shadow-sm" style="width: 45px; height: 45px; line-height: 29px; color: <?= $icon_saldo_color; ?>;">
+                        <div class="rounded-circle bg-light p-2 text-center" style="width: 45px; height: 45px; color: <?= $icon_saldo_color; ?>;">
                             <i class="bi bi-cash-stack fs-5"></i>
                         </div>
                     </div>
@@ -205,7 +243,8 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                             <th class="ps-4 py-3" style="width: 70px;">No</th>
                             <th style="width: 140px;">Tanggal</th>
                             <th>Keterangan</th>
-                            <th class="text-center" style="width: 150px;">Jenis</th>
+                            <th style="width: 135px;">Kategori</th>
+                            <th class="text-center" style="width: 130px;">Jenis</th>
                             <th class="text-end" style="width: 180px;">Nominal</th>
                             <th class="text-center" style="width: 120px;">Aksi</th>
                         </tr>
@@ -224,7 +263,10 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="fw-normal"><?= htmlspecialchars($row['keterangan']); ?></span>
+                                        <span class="fw-semibold text-dark"><?= htmlspecialchars($row['keterangan']); ?></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-kategori"><?= htmlspecialchars($row['kategori'] ?? 'Umum'); ?></span>
                                     </td>
                                     <td class="text-center">
                                         <?php if ($row['jenis'] === 'pemasukan'): ?>
@@ -233,7 +275,7 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                                             <span class="badge badge-pengeluaran fw-semibold"><i class="bi bi-arrow-up-right me-1"></i>Pengeluaran</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end fw-bold">
+                                    <td class="text-end fw-black font-monospace">
                                         <?php if ($row['jenis'] === 'pemasukan'): ?>
                                             <span class="text-pemasukan">+ <?= rupiah($row['jumlah']); ?></span>
                                         <?php else: ?>
@@ -242,7 +284,7 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group gap-1">
-                                            <a href="edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-secondary rounded-2" title="Edit Transaksi">
+                                            <a href="edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-primary rounded-2" title="Edit Transaksi">
                                                 <i class="bi bi-pencil-square"></i>
                                             </a>
                                             <a href="hapus.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-danger rounded-2" onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?');" title="Hapus Transaksi">
@@ -254,7 +296,7 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="bi bi-journals fs-1 mb-3 text-secondary d-block"></i>
                                     <h5>Belum Ada Data Transaksi</h5>
                                     <p class="small text-muted mb-0">Klik tombol "Tambah Transaksi" di atas untuk memasukkan data pertama Anda.</p>

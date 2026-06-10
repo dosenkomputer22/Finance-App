@@ -77,7 +77,21 @@ export default function SettingsView({
 }: SettingsViewProps) {
   const [subTab, setSubTab] = useState<'db' | 'code' | 'cpanel' | 'customize'>('db');
 
-  const files = ['koneksi.php', 'db.sql', 'index.php', 'tambah.php', 'edit.php', 'hapus.php', 'README.md'];
+  const files = [
+    'koneksi.php', 
+    'db.sql', 
+    'index.php', 
+    'login.php', 
+    'logout.php', 
+    'tambah.php', 
+    'edit.php', 
+    'hapus.php', 
+    'kelola_user.php', 
+    'tambah_user.php', 
+    'edit_user.php', 
+    'hapus_user.php', 
+    'README.md'
+  ];
 
   const handleConfigChange = (field: keyof DbConfig, value: string) => {
     setDbConfig({

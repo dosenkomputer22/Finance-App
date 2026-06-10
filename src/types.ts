@@ -17,4 +17,11 @@ export interface DbConfig {
   name: string;
 }
 
-export type ActiveTab = 'dashboard' | 'transactions' | 'add-transaction' | 'reports' | 'categories' | 'settings';
+export type ActiveTab = 'dashboard' | 'transactions' | 'add-transaction' | 'reports' | 'categories' | 'settings' | 'users';
+
+export interface UserSim {
+  id: string;
+  username: string;
+  nama: string;
+  role: 'admin' | 'superadmin';
+}

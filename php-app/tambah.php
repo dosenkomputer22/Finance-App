@@ -1,21 +1,28 @@
 <?php
 // tambah.php
-// Mengurus penambahan transaksi baru beserta validasi input server-side
+// Mengurus penambahan transaksi baru beserta validasi input server-side dengan proteksi login
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
 
 require_once 'koneksi.php';
 
 $error = '';
 
-// Verifikasi jika form dikirimkan
+// Verifikasi jika form dikirimkan via POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Escape dan amankan input mentah
     $tanggal = trim($_POST['tanggal']);
     $keterangan = trim($_POST['keterangan']);
+    $kategori = trim($_POST['kategori']);
     $jenis = trim($_POST['jenis']);
     $jumlah = trim($_POST['jumlah']);
 
     // Validasi sederhana: pastikan tidak ada data yang kosong
-    if (empty($tanggal) || empty($keterangan) || empty($jenis) || empty($jumlah)) {
+    if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah)) {
         $error = "Peringatan: Semua data wajib diisi dan tidak boleh dibiarkan kosong!";
     } elseif ($jumlah <= 0) {
         $error = "Peringatan: Nominal jumlah harus lebih besar dari Rp 0!";
@@ -26,12 +33,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $jumlah_int = (int) $jumlah;
 
         // Gunakan Prepared Statement demi pertahanan SQL Injection
-        $query_insert = "INSERT INTO transaksi (tanggal, keterangan, jenis, jumlah) VALUES (?, ?, ?, ?)";
+        $query_insert = "INSERT INTO transaksi (tanggal, keterangan, kategori, jenis, jumlah) VALUES (?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($koneksi, $query_insert);
 
         if ($stmt) {
-            // Ikat parameter ("sssi" : s=string, i=integer)
-            mysqli_stmt_bind_param($stmt, "sssi", $tanggal, $keterangan, $jenis, $jumlah_int);
+            // Ikat parameter ("ssssi" : s=string, i=integer)
+            mysqli_stmt_bind_param($stmt, "ssssi", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int);
 
             // Jalankan Statement
             if (mysqli_stmt_execute($stmt)) {
@@ -45,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Membebaskan memori statement
             mysqli_stmt_close($stmt);
         } else {
-            $error = "Kegagalan sistem internal MySQLi dalam penyusunan query.";
+            $error = "Gagal memproses susunan syntax query MySQL: " . mysqli_error($koneksi);
         }
     }
 }
@@ -55,112 +62,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Transaksi Keuangan</title>
+    <title>Tambah Transaksi - KeuanganKu</title>
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f3f4f6;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
         }
         .main-card {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark py-3 mb-4 shadow">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3 mb-4 shadow" style="background-color: #0f172a !important;">
     <div class="container">
-        <a href="index.php" class="navbar-brand fw-bold mb-0 h1 d-flex align-items-center text-white">
-            <i class="bi bi-piggy-bank-fill text-warning me-2"></i>
-            Aplikasi Catatan Keuangan
+        <a class="navbar-brand d-flex align-items-center" href="index.php">
+            <i class="bi bi-wallet2 text-primary me-2 fs-4"></i>
+            KeuanganKu <span class="badge bg-primary ms-2 fs-6">PHP + MySQL</span>
         </a>
     </div>
 </nav>
 
-<div class="container py-2 pb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-7 col-md-10">
-            
-            <!-- Tombol Kembali -->
-            <div class="mb-3">
-                <a href="index.php" class="btn btn-link link-dark text-decoration-none p-0">
-                    <i class="bi bi-arrow-left-circle-fill me-1 text-secondary"></i> Kembali ke Dashboard
-                </a>
-            </div>
-
-            <!-- Form Card -->
-            <div class="card main-card overflow-hidden">
-                <div class="card-header bg-dark text-white p-3">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2 text-warning"></i>Tambah Transaksi Baru</h5>
-                </div>
-                <div class="card-body p-4">
-
-                    <?php if (!empty($error)): ?>
-                        <div class="alert alert-danger d-flex align-items-center" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-                            <div><?= $error; ?></div>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="tambah.php" method="POST">
-                        <div class="row g-3">
-                            
-                            <!-- Pilih Tanggal -->
-                            <div class="col-md-6">
-                                <label for="tanggal" class="form-label fw-semibold text-secondary">Tanggal Transaksi</label>
-                                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= date('Y-m-d'); ?>" required>
-                            </div>
-
-                            <!-- Pilih Aliran -->
-                            <div class="col-md-6">
-                                <label for="jenis" class="form-label fw-semibold text-secondary">Jenis Transaksi</label>
-                                <select class="form-select" id="jenis" name="jenis" required>
-                                    <option value="" disabled selected>-- Pilih Jenis --</option>
-                                    <option value="pemasukan">Pemasukan (Uang Masuk)</option>
-                                    <option value="pengeluaran">Pengeluaran (Uang Keluar)</option>
-                                </select>
-                            </div>
-
-                            <!-- Input Jumlah -->
-                            <div class="col-12">
-                                <label for="jumlah" class="form-label fw-semibold text-secondary">Jumlah Nominal (Rupiah)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light fw-bold text-secondary">Rp</span>
-                                    <input type="number" class="form-control" id="jumlah" name="jumlah" placeholder="Contoh: 100000" min="1" required>
-                                </div>
-                                <div class="form-text text-muted">Input hanya angka bulat murni tanpa pemisah titik atau simbol desimal.</div>
-                            </div>
-
-                            <!-- Input Keterangan -->
-                            <div class="col-12">
-                                <label for="keterangan" class="form-label fw-semibold text-secondary">Keterangan / Deskripsi</label>
-                                <textarea class="form-control" id="keterangan" name="keterangan" rows="3" placeholder="Contoh: Membeli makan siang, Pembayaran projek web..." required></textarea>
-                            </div>
-
-                            <!-- Tombol Submit -->
-                            <div class="col-12 border-top pt-3 mt-4 d-flex justify-content-end gap-2">
-                                <a href="index.php" class="btn btn-outline-secondary px-4 py-2">Batal</a>
-                                <button type="submit" class="btn btn-primary px-4 py-2">
-                                    <i class="bi bi-check-circle-fill me-1"></i> Simpan Transaksi
-                                </button>
-                            </div>
-
-                        </div>
-                    </form>
-
-                </div>
-            </div>
-
+<div class="container pb-5">
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="index.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Tambah Transaksi Baru</h4>
         </div>
+
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-danger px-3 py-2.5 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #b91c1c;">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                <div class="small fw-semibold"><?= htmlspecialchars($error); ?></div>
+            </div>
+        <?php endif; ?>
+
+        <form action="tambah.php" method="POST">
+            <div class="mb-3">
+                <label for="tanggal" class="form-label">Tanggal Transaksi</label>
+                <input type="date" class="form-control" id="tanggal" name="tanggal" value="<?= date('Y-m-d'); ?>" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label d-block">Jenis Aliran Dana</label>
+                <div class="form-check form-check-inline me-4">
+                    <input class="form-check-input" type="radio" name="jenis" id="pemasukan" value="pemasukan" checked>
+                    <label class="form-check-label fw-semibold text-success" for="pemasukan">
+                        <i class="bi bi-box-arrow-in-down-left me-1"></i> Pemasukan
+                    </label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="jenis" id="pengeluaran" value="pengeluaran">
+                    <label class="form-check-label fw-semibold text-danger" for="pengeluaran">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Pengeluaran
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="kategori" class="form-label">Kategori Transaksi</label>
+                <select class="form-select" id="kategori" name="kategori" required>
+                    <option value="Gaji">Gaji / Penghasilan</option>
+                    <option value="Belanja">Belanja Bulanan</option>
+                    <option value="Transportasi">Transportasi / Bensin</option>
+                    <option value="Makan & Minum">Makan & Minum</option>
+                    <option value="Tagihan">Tagihan WiFi / Listrik</option>
+                    <option value="Freelance">Freelance / Projek</option>
+                    <option value="Lainnya" selected>Lainnya</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="jumlah" class="form-label">Jumlah Uang (Rupiah Rp)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-slate-500 font-monospace fw-bold">Rp</span>
+                    <input type="number" class="form-control font-monospace fw-bold" id="jumlah" name="jumlah" placeholder="Contoh: 100000" min="1" required>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="keterangan" class="form-label">Keterangan Catatan</label>
+                <textarea class="form-control" id="keterangan" name="keterangan" placeholder="Ketik keterangan detail pembayaran..." rows="3" required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold shadow-sm text-uppercase tracking-wider">
+                <i class="bi bi-save me-1.5"></i> Simpan Catatan Keuangan
+            </button>
+        </form>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Coins,
   CreditCard,
-  PiggyBank
+  PiggyBank,
+  Users
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 
@@ -88,6 +89,7 @@ export default function Sidebar({
     { id: 'add-transaction' as ActiveTab, label: 'Tambah Transaksi', icon: PlusSquare },
     { id: 'reports' as ActiveTab, label: 'Laporan', icon: FileText },
     { id: 'categories' as ActiveTab, label: 'Kategori', icon: Tags },
+    { id: 'users' as ActiveTab, label: 'Kelola User', icon: Users },
     { id: 'settings' as ActiveTab, label: 'Pengaturan', icon: Settings },
   ];
 
