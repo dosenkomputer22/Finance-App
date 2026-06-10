@@ -23,40 +23,41 @@ $koneksi = @mysqli_connect($db_host, $db_user, $db_pass);
 
 if (!$koneksi) {
     // Jika koneksi ke server MySQL gagal (misal XAMPP belum aktif)
-    die("
-    <div style='font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 60px auto; padding: 30px; border-radius: 16px; background-color: #fef2f2; border: 1px solid #fca5a5; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);'>
-        <div style='display: flex; align-items: center; margin-bottom: 20px;'>
-            <div style='background-color: #fee2e2; padding: 10px; border-radius: 50%; margin-right: 15px; color: #ef4444;'>
-                <svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2'></polygon><line x1='12' y1='8' x2='12' y2='12'></line><line x1='12' y1='16' x2='12.01' y2='16'></line></svg>
+    \$error_detail = mysqli_connect_error();
+    die('
+    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 60px auto; padding: 30px; border-radius: 16px; background-color: #fef2f2; border: 1px solid #fca5a5; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <div style="background-color: #fee2e2; padding: 10px; border-radius: 50%; margin-right: 15px; color: #ef4444;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
             </div>
-            <h2 style='color: #991b1b; margin: 0; font-weight: 700; font-size: 22px;'>Gagal Menghubungi Server MySQL!</h2>
+            <h2 style="color: #991b1b; margin: 0; font-weight: 700; font-size: 22px;">Gagal Menghubungi Server MySQL!</h2>
         </div>
         
-        <p style='color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 20px;'>
+        <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
             Aplikasi <strong>KeuanganKu</strong> tidak dapat terhubung ke server database MySQL Anda menggunakan kredensial di <code>koneksi.php</code>.
         </p>
         
-        <div style='background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #f3f4f6; font-family: monospace; font-size: 13.5px; color: #b91c1c; margin-bottom: 25px;'>
-            <strong>Detail Masalah:</strong> " . mysqli_connect_error() . "
+        <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #f3f4f6; font-family: monospace; font-size: 13.5px; color: #b91c1c; margin-bottom: 25px;">
+            <strong>Detail Masalah:</strong> \' . htmlspecialchars(\$error_detail) . \'
         </div>
         
-        <h3 style='color: #1f2937; margin-bottom: 10px; font-size: 16px; font-weight: 600;'>Langkah Solusi untuk XAMPP:</h3>
-        <ol style='color: #4b5563; font-size: 14.5px; line-height: 1.6; padding-left: 20px; margin-bottom: 25px;'>
-            <li style='margin-bottom: 8px;'>Pastikan aplikasi <strong>XAMPP Control Panel</strong> Anda sudah dibuka.</li>
-            <li style='margin-bottom: 8px;'>Klik tombol <strong>Start</strong> di samping modul <strong>Apache</strong> dan <strong>MySQL</strong> hingga berwarna hijau.</li>
-            <li style='margin-bottom: 8px;'>Buka file <code>koneksi.php</code> dan pastikan kredensial di bawah sudah cocok:
-                <ul style='padding-left: 20px; margin-top: 5px; list-style-type: circle;'>
-                    <li><code>\$db_host = \"$db_host\";</code></li>
-                    <li><code>\$db_user = \"root\";</code> (Default XAMPP)</li>
-                    <li><code>\$db_pass = \"\";</code> (Default XAMPP password dikosongkan)</li>
+        <h3 style="color: #1f2937; margin-bottom: 10px; font-size: 16px; font-weight: 600;">Langkah Solusi untuk XAMPP:</h3>
+        <ol style="color: #4b5563; font-size: 14.5px; line-height: 1.6; padding-left: 20px; margin-bottom: 25px;">
+            <li style="margin-bottom: 8px;">Pastikan aplikasi <strong>XAMPP Control Panel</strong> Anda sudah dibuka.</li>
+            <li style="margin-bottom: 8px;">Klik tombol <strong>Start</strong> di samping modul <strong>Apache</strong> dan <strong>MySQL</strong> hingga berwarna hijau.</li>
+            <li style="margin-bottom: 8px;">Buka file <code>koneksi.php</code> dan pastikan kredensial di bawah sudah cocok:
+                <ul style="padding-left: 20px; margin-top: 5px; list-style-type: circle;">
+                    <li><code>\$db_host = "\' . htmlspecialchars(\$db_host) . \'";</code></li>
+                    <li><code>\$db_user = "\' . htmlspecialchars(\$db_user) . \'";</code></li>
+                    <li><code>\$db_pass = "\' . htmlspecialchars(\$db_pass) . \'";</code></li>
                 </ul>
             </li>
         </ol>
         
-        <button onclick='window.location.reload()' style='background-color: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background-color 0.2s;'>
+        <button onclick="window.location.reload()" style="background-color: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background-color 0.2s;">
             Segarkan Halaman & Hubungkan Kembali
         </button>
-    </div>");
+    </div>\');
 }
 
 // Atur Charset Koneksi ke UTF-8
