@@ -23,5 +23,5 @@ export interface UserSim {
   id: string;
   username: string;
   nama: string;
-  role: 'admin' | 'superadmin';
+  role: 'admin' | 'superadmin' | 'user';
 }

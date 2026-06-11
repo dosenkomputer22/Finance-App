@@ -17,10 +17,10 @@ import { UserSim } from '../types';
 
 interface UsersViewProps {
   users: UserSim[];
-  onAddUser: (username: string, nama: string, role: 'admin' | 'superadmin') => void;
-  onUpdateUser: (id: string, username: string, nama: string, role: 'admin' | 'superadmin') => void;
+  onAddUser: (username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => void;
+  onUpdateUser: (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => void;
   onDeleteUser: (id: string) => void;
-  currentUser: { username: string; role: 'admin' | 'superadmin' };
+  currentUser: { username: string; role: 'admin' | 'superadmin' | 'user' };
   appLogoColor?: string;
 }
 
@@ -38,7 +38,7 @@ export default function UsersView({
   // Form states
   const [username, setUsername] = useState('');
   const [nama, setNama] = useState('');
-  const [role, setRole] = useState<'admin' | 'superadmin'>('admin');
+  const [role, setRole] = useState<'admin' | 'superadmin' | 'user'>('admin');
   const [password, setPassword] = useState(''); // Simulated password field for audit logs
   const [formError, setFormError] = useState('');
 
@@ -191,9 +191,13 @@ export default function UsersView({
                               <ShieldCheck className="w-3 h-3 text-indigo-500" />
                               Super Admin
                             </span>
-                          ) : (
+                          ) : user.role === 'admin' ? (
                             <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-100 font-extrabold px-2 py-0.5 rounded-full border border-slate-200 uppercase">
                               Admin Keuangan
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-55 font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase">
+                              User Biasa
                             </span>
                           )}
                         </div>
@@ -333,10 +337,11 @@ export default function UsersView({
                   </label>
                   <select
                     value={role}
-                    onChange={(e) => setRole(e.target.value as 'admin' | 'superadmin')}
+                    onChange={(e) => setRole(e.target.value as 'admin' | 'superadmin' | 'user')}
                     disabled={editingId !== null && username === 'admin'} // Cannot downgrade primary admin
                     className="w-full text-xs font-bold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
                   >
+                    <option value="user">User Biasa (Hanya Kelola Transaksi Sendiri)</option>
                     <option value="admin">Admin Keuangan (Akses Terbatas)</option>
                     <option value="superadmin">Super Admin (Akses Penuh)</option>
                   </select>

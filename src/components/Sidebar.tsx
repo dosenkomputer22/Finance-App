@@ -18,7 +18,7 @@ import {
   PiggyBank,
   Users
 } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { ActiveTab, UserSim } from '../types';
 
 const LogoIconMap: Record<string, React.ComponentType<any>> = {
   Wallet,
@@ -64,6 +64,7 @@ interface SidebarProps {
   appName?: string;
   appLogo?: string;
   appLogoColor?: string;
+  currentUser?: UserSim;
 }
 
 export default function Sidebar({
@@ -78,7 +79,8 @@ export default function Sidebar({
   zipSuccess,
   appName = 'KeuanganKu',
   appLogo = 'Wallet',
-  appLogoColor = 'blue'
+  appLogoColor = 'blue',
+  currentUser
 }: SidebarProps) {
   
   const SelectedLogoIcon = LogoIconMap[appLogo] || Wallet;
@@ -95,6 +97,14 @@ export default function Sidebar({
 
   const renderSidebarContent = (forceExpanded = false) => {
     const showFull = !isCollapsed || forceExpanded;
+    const visibleMenuItems = menuItems.filter(item => {
+      const role = currentUser?.role ?? 'superadmin';
+      if (role === 'user') {
+        return item.id !== 'categories' && item.id !== 'users';
+      }
+      return true;
+    });
+
     return (
       <div className="flex flex-col h-full bg-[#131926] text-slate-300">
         {/* Brand logo header */}
@@ -123,7 +133,7 @@ export default function Sidebar({
 
         {/* Navigation Area */}
         <nav className={`flex-grow p-4 space-y-1 overflow-y-auto ${showFull ? 'space-y-1' : 'space-y-3.5 flex flex-col items-center'}`}>
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

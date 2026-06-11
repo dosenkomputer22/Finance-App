@@ -42,7 +42,8 @@ import {
   EDIT_USER_PHP,
   HAPUS_USER_PHP,
   SIDEBAR_PHP,
-  PENGATURAN_PHP
+  PENGATURAN_PHP,
+  LAPORAN_PHP
 } from './php-templates';
 
 // Primary default transactions history
@@ -238,7 +239,7 @@ export default function App() {
     }
   };
 
-  const handleAddUser = (username: string, nama: string, role: 'admin' | 'superadmin') => {
+  const handleAddUser = (username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => {
     const newUser: UserSim = {
       id: Date.now().toString(),
       username,
@@ -248,7 +249,7 @@ export default function App() {
     setUsersSim([...usersSim, newUser]);
   };
 
-  const handleUpdateUser = (id: string, username: string, nama: string, role: 'admin' | 'superadmin') => {
+  const handleUpdateUser = (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => {
     setUsersSim(usersSim.map(u => u.id === id ? { ...u, username, nama, role } : u));
     if (currentUser.id === id) {
       setCurrentUser({ ...currentUser, username, nama, role });
@@ -278,42 +279,67 @@ export default function App() {
     }
   };
 
+  const getReplacedPhpTemplate = (content: string) => {
+    if (!content) return '';
+    return content.replace(/KeuanganKu/g, appName);
+  };
+
   // Retrieve code content dynamically based on selector tab item
   const getSelectedCodeContent = () => {
+    let rawContent = '';
     switch (selectedFile) {
       case 'koneksi.php':
-        return getKoneksiCode(dbConfig);
+        rawContent = getKoneksiCode(dbConfig);
+        break;
       case 'db.sql':
-        return getSqlSchema(dbConfig);
+        rawContent = getSqlSchema(dbConfig);
+        break;
       case 'index.php':
-        return INDEX_PHP;
+        rawContent = INDEX_PHP;
+        break;
+      case 'laporan.php':
+        rawContent = LAPORAN_PHP;
+        break;
       case 'login.php':
-        return LOGIN_PHP;
+        rawContent = LOGIN_PHP;
+        break;
       case 'logout.php':
-        return LOGOUT_PHP;
+        rawContent = LOGOUT_PHP;
+        break;
       case 'tambah.php':
-        return TAMBAH_PHP;
+        rawContent = TAMBAH_PHP;
+        break;
       case 'edit.php':
-        return EDIT_PHP;
+        rawContent = EDIT_PHP;
+        break;
       case 'hapus.php':
-        return HAPUS_PHP;
+        rawContent = HAPUS_PHP;
+        break;
       case 'kelola_user.php':
-        return KELOLA_USER_PHP;
+        rawContent = KELOLA_USER_PHP;
+        break;
       case 'tambah_user.php':
-        return TAMBAH_USER_PHP;
+        rawContent = TAMBAH_USER_PHP;
+        break;
       case 'edit_user.php':
-        return EDIT_USER_PHP;
+        rawContent = EDIT_USER_PHP;
+        break;
       case 'hapus_user.php':
-        return HAPUS_USER_PHP;
+        rawContent = HAPUS_USER_PHP;
+        break;
       case 'sidebar.php':
-        return SIDEBAR_PHP;
+        rawContent = SIDEBAR_PHP;
+        break;
       case 'pengaturan.php':
-        return PENGATURAN_PHP;
+        rawContent = PENGATURAN_PHP;
+        break;
       case 'README.md':
-        return README_CPANEL;
+        rawContent = README_CPANEL;
+        break;
       default:
-        return '';
+        rawContent = '';
     }
+    return getReplacedPhpTemplate(rawContent);
   };
 
   const handleCopyCode = () => {
@@ -331,26 +357,27 @@ export default function App() {
 
     const zip = new JSZip();
     
-    // Construct dynamic configuration dependencies
-    const koneksiCode = getKoneksiCode(dbConfig);
-    const sqlSchema = getSqlSchema(dbConfig);
+    // Construct dynamic configuration dependencies and apply app name
+    const koneksiCode = getReplacedPhpTemplate(getKoneksiCode(dbConfig));
+    const sqlSchema = getReplacedPhpTemplate(getSqlSchema(dbConfig));
 
     // Append standard core system files
     zip.file('koneksi.php', koneksiCode);
     zip.file('db.sql', sqlSchema);
-    zip.file('index.php', INDEX_PHP);
-    zip.file('login.php', LOGIN_PHP);
-    zip.file('logout.php', LOGOUT_PHP);
-    zip.file('tambah.php', TAMBAH_PHP);
-    zip.file('edit.php', EDIT_PHP);
-    zip.file('hapus.php', HAPUS_PHP);
-    zip.file('kelola_user.php', KELOLA_USER_PHP);
-    zip.file('tambah_user.php', TAMBAH_USER_PHP);
-    zip.file('edit_user.php', EDIT_USER_PHP);
-    zip.file('hapus_user.php', HAPUS_USER_PHP);
-    zip.file('sidebar.php', SIDEBAR_PHP);
-    zip.file('pengaturan.php', PENGATURAN_PHP);
-    zip.file('README.md', README_CPANEL);
+    zip.file('index.php', getReplacedPhpTemplate(INDEX_PHP));
+    zip.file('laporan.php', getReplacedPhpTemplate(LAPORAN_PHP));
+    zip.file('login.php', getReplacedPhpTemplate(LOGIN_PHP));
+    zip.file('logout.php', getReplacedPhpTemplate(LOGOUT_PHP));
+    zip.file('tambah.php', getReplacedPhpTemplate(TAMBAH_PHP));
+    zip.file('edit.php', getReplacedPhpTemplate(EDIT_PHP));
+    zip.file('hapus.php', getReplacedPhpTemplate(HAPUS_PHP));
+    zip.file('kelola_user.php', getReplacedPhpTemplate(KELOLA_USER_PHP));
+    zip.file('tambah_user.php', getReplacedPhpTemplate(TAMBAH_USER_PHP));
+    zip.file('edit_user.php', getReplacedPhpTemplate(EDIT_USER_PHP));
+    zip.file('hapus_user.php', getReplacedPhpTemplate(HAPUS_USER_PHP));
+    zip.file('sidebar.php', getReplacedPhpTemplate(SIDEBAR_PHP));
+    zip.file('pengaturan.php', getReplacedPhpTemplate(PENGATURAN_PHP));
+    zip.file('README.md', getReplacedPhpTemplate(README_CPANEL));
 
     // Compile into blob payload and trigger anchor injection download
     zip.generateAsync({ type: 'blob' }).then((content) => {
@@ -402,6 +429,7 @@ export default function App() {
         appName={appName}
         appLogo={appLogo}
         appLogoColor={appLogoColor}
+        currentUser={currentUser}
       />
 
       {/* Main Panel */}

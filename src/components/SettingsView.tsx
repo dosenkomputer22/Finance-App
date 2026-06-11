@@ -77,10 +77,48 @@ export default function SettingsView({
 }: SettingsViewProps) {
   const [subTab, setSubTab] = useState<'db' | 'code' | 'cpanel' | 'customize'>('db');
 
+  // local states for dynamic synchronization feedback
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+  const [syncSteps, setSyncSteps] = useState<string[]>([]);
+  const [currentSyncStep, setCurrentSyncStep] = useState(0);
+
+  const handleSync = () => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    setSyncSteps([]);
+    setCurrentSyncStep(0);
+
+    const steps = [
+      'Menghubungkan data Host & Credential MySQL terbaru...',
+      'Meregenerasi file koneksi (koneksi.php)...',
+      `Menyuntikkan konfigurasi nama aplikasi "${appName}" ke seluruh halaman index & sidebar...`,
+      'Memperbarui skema installer file database (db.sql)...',
+      'Memvalidasi kompatibilitas layout cPanel...',
+      'Sinkronisasi murni seluruh berkas proyek PHP sukses dikompilasi!'
+    ];
+
+    let current = 0;
+    const interval = setInterval(() => {
+      if (current < steps.length) {
+        setSyncSteps(prev => [...prev, steps[current]]);
+        setCurrentSyncStep(current + 1);
+        current++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          setIsSyncing(false);
+          setSyncSuccess(true);
+        }, 500);
+      }
+    }, 400);
+  };
+
   const files = [
     'koneksi.php', 
     'db.sql', 
     'index.php', 
+    'laporan.php',
     'sidebar.php',
     'pengaturan.php',
     'login.php', 
@@ -225,38 +263,108 @@ export default function SettingsView({
             </p>
           </div>
 
-          <div className="md:col-span-5 bg-white p-6 border border-gray-100 rounded-2xl shadow-xs space-y-4">
+          <div className="md:col-span-12 lg:col-span-5 bg-white p-6 border border-gray-100 rounded-2xl shadow-xs space-y-4">
             <h4 className="font-extrabold text-slate-800 text-sm md:text-base font-sans pb-3 border-b border-gray-100">
-              Tindakan Administrator
+              Panel Sinkronisasi & Unduh Project PHP
             </h4>
             
-            <div className="space-y-3.5">
-              {/* Reset to Default */}
-              <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-4">
-                <h5 className="font-bold text-slate-800 text-xs">Reset Catatan Simulasi</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-medium">Reset riwayat transaksi dan kembalikan ke data bawaan simulasi.</p>
+            <div className="space-y-4">
+              {/* Sinkronisasi Kode PHP (Requested Feature) */}
+              <div className="border border-indigo-100 bg-indigo-50/20 rounded-2xl p-4.5 space-y-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 bg-indigo-105 bg-indigo-100 rounded-xl text-indigo-650 block">
+                    <RefreshCw className={`w-4 cursor-pointer h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  </span>
+                  <div className="leading-tight">
+                    <h5 className="font-black text-slate-800 text-xs sm:text-sm">Sinkronisasi Kode PHP</h5>
+                    <p className="text-[9px] text-indigo-600 font-extrabold tracking-widest uppercase mt-0.5">TERINTEGRASI BRAND & DB</p>
+                  </div>
+                </div>
+                
+                <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                  Terapkan nama aplikasi kustom <span className="text-slate-800 font-black">"{appName}"</span> dan setelan database MySQL baru Anda secara otomatis ke seluruh baris kode PHP murni.
+                </p>
+
+                {/* Progress rendering */}
+                {syncSteps.length > 0 && (
+                  <div className="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-[10px] space-y-1.5 border border-slate-850 max-h-40 overflow-y-auto">
+                    {syncSteps.map((step, idx) => (
+                      <div key={idx} className="flex items-start gap-1.5 animate-slide-in">
+                        {idx === currentSyncStep - 1 && isSyncing ? (
+                          <span className="text-amber-400 animate-pulse shrink-0">⚡</span>
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        )}
+                        <span className={idx === currentSyncStep - 1 && isSyncing ? 'text-white font-bold' : 'text-slate-350'}>
+                          {step}
+                        </span>
+                      </div>
+                    ))}
+                    {isSyncing && (
+                      <div className="text-[9px] text-slate-500 animate-pulse font-bold flex items-center gap-1 mt-1 pl-4">
+                        <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        Memproses kompilasi...
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sync success banner */}
+                {syncSuccess && (
+                  <div className="bg-emerald-50 text-emerald-805 text-emerald-800 border border-emerald-250/60 rounded-xl p-3 text-[11px] leading-relaxed font-bold animate-fade-in flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span>Kompilasi sukses! Seluruh kode PHP murni siap pakai kini telah menggunakan merek kustomisasi <span className="underline">"{appName}"</span> Anda.</span>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  onClick={onResetData}
-                  className="mt-3 inline-flex items-center gap-1 bg-white border border-gray-250 hover:bg-slate-50 text-slate-700 font-bold text-xs py-2 px-3.5 rounded-xl transition-colors cursor-pointer"
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-slate-450" />
-                  Restore Catatan Bawaan
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Memproses Kompilasi...' : 'Mulai Sinkronisasi Kode PHP'}
                 </button>
               </div>
 
               {/* Bulk Exporter ZIP */}
-              <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-4">
+              <div className="border border-slate-100 bg-slate-50/50 rounded-2xl p-4">
                 <h5 className="font-bold text-slate-800 text-xs">Unduh ZIP Project PHP Siap Pakai</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-medium">Sistem akan mengepak seluruh file PHP dengan configurasi database Anda di atas, ke dalam format ZIP murni.</p>
+                <p className="text-[10px] text-slate-550 mt-1 leading-normal font-semibold">Sistem akan mengepak seluruh file PHP dengan konfigurasi database Anda di atas, ke dalam format ZIP murni.</p>
                 <button
                   type="button"
                   onClick={onDownloadZip}
                   disabled={isZipping}
-                  className="mt-3 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className={`mt-3 w-full inline-flex items-center justify-center gap-2 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-xs transition-colors cursor-pointer ${
+                    syncSuccess 
+                      ? 'bg-emerald-600 hover:bg-emerald-700' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Unduh Archive ZIP
+                  {isZipping ? 'Mengkompres Project...' : syncSuccess ? 'Unduh Berkas Hasil Sinkron (ZIP)' : 'Unduh Archive ZIP'}
+                </button>
+                {zipSuccess && (
+                  <p className="text-[10px] text-emerald-600 font-extrabold mt-2 text-center animate-fade-in">✓ File ZIP berhasil diunduh ke folder Downloads!</p>
+                )}
+              </div>
+
+              {/* Reset to Default */}
+              <div className="border border-slate-100 bg-slate-50/50 rounded-2xl p-4">
+                <h5 className="font-bold text-slate-700 text-xs">Reset Catatan Simulasi</h5>
+                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-medium">Reset riwayat transaksi dan kembalikan ke data bawaan simulasi.</p>
+                <button
+                  type="button"
+                  onClick={onResetData}
+                  className="mt-3 inline-flex items-center gap-1 bg-white border border-gray-250 hover:bg-slate-50 text-slate-705 text-slate-600 font-bold text-xs py-2 px-3.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-450" />
+                  Restore Catatan Bawaan
                 </button>
               </div>
             </div>

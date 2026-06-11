@@ -236,17 +236,18 @@ CREATE TABLE IF NOT EXISTS \`transaksi\` (
   \`kategori\` VARCHAR(100) NOT NULL DEFAULT 'Lainnya',
   \`jenis\` ENUM('pemasukan','pengeluaran') NOT NULL,
   \`jumlah\` INT(11) NOT NULL,
+  \`username\` VARCHAR(50) NOT NULL DEFAULT 'admin',
   PRIMARY KEY (\`id\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Menambahkan Data Dummy Awal
-INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`jenis\`, \`jumlah\`) VALUES
-(1, '2026-06-01', 'Gaji Bulanan Utama', 'Gaji', 'pemasukan', 5000000),
-(2, '2026-06-02', 'Membeli Hosting & Domain CPanel', 'Tagihan', 'pengeluaran', 250000),
-(3, '2026-06-03', 'Projek Pembuatan Jasa Website UMKM', 'Freelance', 'pemasukan', 1750000),
-(4, '2026-06-05', 'Membayar Tagihan Listrik Bulanan', 'Tagihan', 'pengeluaran', 190000),
-(5, '2026-06-06', 'Membeli Buku Panduan Pemrograman PHP', 'Belanja', 'pengeluaran', 95000),
-(6, '2026-06-08', 'Menerima Komisi Afiliasi Landing Page', 'Freelance', 'pemasukan', 600000)
+INSERT INTO \`transaksi\` (\`id\`, \`tanggal\`, \`keterangan\`, \`kategori\`, \`jenis\`, \`jumlah\`, \`username\`) VALUES
+(1, '2026-06-01', 'Gaji Bulanan Utama', 'Gaji', 'pemasukan', 5000000, 'admin'),
+(2, '2026-06-02', 'Membeli Hosting & Domain CPanel', 'Tagihan', 'pengeluaran', 250000, 'admin'),
+(3, '2026-06-03', 'Projek Pembuatan Jasa Website UMKM', 'Freelance', 'pemasukan', 1750000, 'admin'),
+(4, '2026-06-05', 'Membayar Tagihan Listrik Bulanan', 'Tagihan', 'pengeluaran', 190000, 'admin'),
+(5, '2026-06-06', 'Membeli Buku Panduan Pemrograman PHP', 'Belanja', 'pengeluaran', 95000, 'admin'),
+(6, '2026-06-08', 'Menerima Komisi Afiliasi Landing Page', 'Freelance', 'pemasukan', 600000, 'admin')
 ON DUPLICATE KEY UPDATE id=id;
 `;
 }
@@ -268,14 +269,25 @@ function rupiah($angka) {
     return "Rp " . number_format($angka, 0, ',', '.');
 }
 
+$user_role = $_SESSION['role'] ?? 'admin';
+$user_username = $_SESSION['username'] ?? 'user';
+
 // 1. Ambil & hitung total pemasukan
-$query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan'";
+if ($user_role === 'user') {
+    $query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan' AND username='" . mysqli_real_escape_string($koneksi, $user_username) . "'";
+} else {
+    $query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan'";
+}
 $res_pemasukan = mysqli_query($koneksi, $query_pemasukan);
 $row_pemasukan = mysqli_fetch_assoc($res_pemasukan);
 $total_pemasukan = $row_pemasukan['total'] ?? 0;
 
 // 2. Ambil & hitung total pengeluaran
-$query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran'";
+if ($user_role === 'user') {
+    $query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran' AND username='" . mysqli_real_escape_string($koneksi, $user_username) . "'";
+} else {
+    $query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran'";
+}
 $res_pengeluaran = mysqli_query($koneksi, $query_pengeluaran);
 $row_pengeluaran = mysqli_fetch_assoc($res_pengeluaran);
 $total_pengeluaran = $row_pengeluaran['total'] ?? 0;
@@ -284,7 +296,11 @@ $total_pengeluaran = $row_pengeluaran['total'] ?? 0;
 $saldo_akhir = $total_pemasukan - $total_pengeluaran;
 
 // 4. Ambil daftar transaksi dari database diurutkan dari tanggal terbaru
-$query_transaksi = "SELECT * FROM transaksi ORDER BY tanggal DESC, id DESC";
+if ($user_role === 'user') {
+    $query_transaksi = "SELECT * FROM transaksi WHERE username='" . mysqli_real_escape_string($koneksi, $user_username) . "' ORDER BY tanggal DESC, id DESC";
+} else {
+    $query_transaksi = "SELECT * FROM transaksi ORDER BY tanggal DESC, id DESC";
+}
 $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 ?>
 <!DOCTYPE html>
@@ -384,6 +400,19 @@ $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 $active_page = 'dashboard';
 include 'sidebar.php';
 ?>
+<div class="container-fluid py-2">
+    
+    <!-- Notifikasi Error/Gagal dari Aksi Halaman Lain (Otorisasi Gagal) -->
+    <?php if (isset($_GET['err'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-xs p-3.5 mb-4 d-flex align-items-center" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2) !important;">
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
+            <div>
+                <strong class="text-danger d-block">Akses Terbatasi!</strong>
+                <span class="small text-slate-700"><?= htmlspecialchars($_GET['err']); ?></span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
     
     <!-- Bagian Ringkasan Anggaran -->
     <div class="row g-4 mb-4">
@@ -585,12 +614,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $jumlah_int = (int) $jumlah;
 
         // Gunakan Prepared Statement demi pertahanan SQL Injection
-        $query_insert = "INSERT INTO transaksi (tanggal, keterangan, kategori, jenis, jumlah) VALUES (?, ?, ?, ?, ?)";
+        $user_username = $_SESSION['username'] ?? 'admin';
+        $query_insert = "INSERT INTO transaksi (tanggal, keterangan, kategori, jenis, jumlah, username) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($koneksi, $query_insert);
 
         if ($stmt) {
-            // Ikat parameter ("ssssi" : s=string, i=integer)
-            mysqli_stmt_bind_param($stmt, "ssssi", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int);
+            // Ikat parameter ("ssssis" : s=string, i=integer)
+            mysqli_stmt_bind_param($stmt, "ssssis", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $user_username);
 
             // Jalankan Statement
             if (mysqli_stmt_execute($stmt)) {
@@ -780,6 +810,14 @@ if ($stmt_select) {
     
     $old_data = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt_select);
+
+    // Proteksi: Jika role adalah 'user', pastikan transaksi milik dia
+    $user_role = $_SESSION['role'] ?? 'admin';
+    $user_username = $_SESSION['username'] ?? 'user';
+    if ($user_role === 'user' && $old_data['username'] !== $user_username) {
+        header("Location: index.php?err=" . urlencode("Akses ditolak! Anda tidak diizinkan mengubah transaksi milik pengguna lain."));
+        exit();
+    }
 } else {
     die("Kegagalan memproses kueri database SELECT.");
 }
@@ -978,20 +1016,43 @@ require_once 'koneksi.php';
 // Memastikan parameter ID terisi
 if (isset($_GET['id']) && !empty(trim($_GET['id']))) {
     $id = (int) $_GET['id'];
-    
-    // Siapkan prepared statement untuk mencegah serangan SQL Injection
-    $query_delete = "DELETE FROM transaksi WHERE id = ?";
-    $stmt = mysqli_prepare($koneksi, $query_delete);
-    
-    if ($stmt) {
-        // Ikat parameter integer
-        mysqli_stmt_bind_param($stmt, "i", $id);
+    $user_role = $_SESSION['role'] ?? 'admin';
+    $user_username = $_SESSION['username'] ?? 'user';
+
+    // Verifikasi penanggung jawab / pemilik kueri jika role adalah 'user'
+    $can_delete = true;
+    $query_check = "SELECT username FROM transaksi WHERE id = ?";
+    $stmt_check = mysqli_prepare($koneksi, $query_check);
+    if ($stmt_check) {
+        mysqli_stmt_bind_param($stmt_check, "i", $id);
+        mysqli_stmt_execute($stmt_check);
+        $res_check = mysqli_stmt_get_result($stmt_check);
+        if ($row_check = mysqli_fetch_assoc($res_check)) {
+            if ($user_role === 'user' && $row_check['username'] !== $user_username) {
+                $can_delete = false;
+            }
+        }
+        mysqli_stmt_close($stmt_check);
+    }
+
+    if ($can_delete) {
+        // Siapkan prepared statement untuk mencegah serangan SQL Injection
+        $query_delete = "DELETE FROM transaksi WHERE id = ?";
+        $stmt = mysqli_prepare($koneksi, $query_delete);
         
-        // Jalankan perintah hapus
-        mysqli_stmt_execute($stmt);
-        
-        // Selesai membebaskan memori kueri
-        mysqli_stmt_close($stmt);
+        if ($stmt) {
+            // Ikat parameter integer
+            mysqli_stmt_bind_param($stmt, "i", $id);
+            
+            // Jalankan perintah hapus
+            mysqli_stmt_execute($stmt);
+            
+            // Selesai membebaskan memori kueri
+            mysqli_stmt_close($stmt);
+        }
+    } else {
+        header("Location: index.php?err=" . urlencode("Gagal menghapus! Anda tidak diizinkan menghapus transaksi milik orang lain."));
+        exit();
     }
 }
 
@@ -1293,6 +1354,12 @@ export const KELOLA_USER_PHP = `<?php
 session_start();
 if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
     header("Location: login.php");
+    exit();
+}
+
+$user_role = $_SESSION['role'] ?? 'admin';
+if ($user_role === 'user') {
+    header("Location: index.php?err=" . urlencode("Akses ditolak! Akun level 'user' dilarang menjajaki Halaman Kelola Pengguna."));
     exit();
 }
 
@@ -2086,10 +2153,17 @@ $theme_cfg = $theme_colors[$selected_theme];
                 <span>Tambah Transaksi</span>
             </a>
             
+            <a href="laporan.php" class="sidebar-nav-link <?= ($active_page === 'laporan') ? 'active' : ''; ?>">
+                <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                <span>Laporan</span>
+            </a>
+            
+            <?php if ($user_role !== 'user'): ?>
             <a href="kelola_user.php" class="sidebar-nav-link <?= ($active_page === 'kelola_user') ? 'active' : ''; ?>">
                 <i class="bi bi-people-fill"></i>
                 <span>Kelola User</span>
             </a>
+            <?php endif; ?>
             
             <a href="pengaturan.php" class="sidebar-nav-link <?= ($active_page === 'pengaturan') ? 'active' : ''; ?>">
                 <i class="bi bi-gear-fill"></i>
@@ -2171,6 +2245,7 @@ if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
 require_once 'koneksi.php';
 
 $user_username = $_SESSION['username'] ?? 'user';
+$user_role = $_SESSION['role'] ?? 'admin';
 $success_msg = "";
 $error_msg = "";
 
@@ -2199,23 +2274,27 @@ if (isset($_POST['update_theme'])) {
 
 // 3. Aksi: Tambah Kategori Baru
 if (isset($_POST['add_category'])) {
-    $new_cat = trim($_POST['nama_kategori'] ?? '');
-    $new_cat_clean = htmlspecialchars($new_cat);
-    
-    if (empty($new_cat)) {
-        $error_msg = "Nama kategori tidak boleh kosong.";
+    if ($user_role === 'user') {
+        $error_msg = "Akses Ditolak: Tingkat peran 'user' tidak diperkenankan menambah kategori transaksi.";
     } else {
-        $new_cat_escaped = mysqli_real_escape_string($koneksi, $new_cat);
-        // Cek duplikasi
-        $check_query = mysqli_query($koneksi, "SELECT id FROM kategori WHERE nama = '$new_cat_escaped'");
-        if (mysqli_num_rows($check_query) > 0) {
-            $error_msg = "Kategori dengan nama '$new_cat_clean' sudah terdaftar.";
+        $new_cat = trim($_POST['nama_kategori'] ?? '');
+        $new_cat_clean = htmlspecialchars($new_cat);
+        
+        if (empty($new_cat)) {
+            $error_msg = "Nama kategori tidak boleh kosong.";
         } else {
-            $insert_query = "INSERT INTO kategori (nama) VALUES ('$new_cat_escaped')";
-            if (mysqli_query($koneksi, $insert_query)) {
-                $success_msg = "Kategori baru '$new_cat_clean' berhasil ditambahkan!";
+            $new_cat_escaped = mysqli_real_escape_string($koneksi, $new_cat);
+            // Cek duplikasi
+            $check_query = mysqli_query($koneksi, "SELECT id FROM kategori WHERE nama = '$new_cat_escaped'");
+            if (mysqli_num_rows($check_query) > 0) {
+                $error_msg = "Kategori dengan nama '$new_cat_clean' sudah terdaftar.";
             } else {
-                $error_msg = "Gagal menambahkan kategori ke database.";
+                $insert_query = "INSERT INTO kategori (nama) VALUES ('$new_cat_escaped')";
+                if (mysqli_query($koneksi, $insert_query)) {
+                    $success_msg = "Kategori baru '$new_cat_clean' berhasil ditambahkan!";
+                } else {
+                    $error_msg = "Gagal menambahkan kategori ke database.";
+                }
             }
         }
     }
@@ -2223,37 +2302,41 @@ if (isset($_POST['add_category'])) {
 
 // 4. Aksi: Hapus Kategori
 if (isset($_GET['delete_category'])) {
-    $cat_id = intval($_GET['delete_category']);
-    
-    // Cari nama kategori berdasarkan ID
-    $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori WHERE id = $cat_id");
-    if ($cat_query && mysqli_num_rows($cat_query) > 0) {
-        $cat_row = mysqli_fetch_assoc($cat_query);
-        $cat_nama = $cat_row['nama'];
+    if ($user_role === 'user') {
+        $error_msg = "Akses Ditolak: Tingkat peran 'user' tidak diperkenankan menghapus kategori transaksi.";
+    } else {
+        $cat_id = intval($_GET['delete_category']);
         
-        // Cek proteksi sistem
-        if (in_array($cat_nama, $system_categories)) {
-            $error_msg = "Kategori bawaan system '$cat_nama' dilindungi dan tidak boleh dihapus.";
-        } else {
-            // Cek apakah ada transaksi aktif menggunakan kategori ini
-            $cat_escaped = mysqli_real_escape_string($koneksi, $cat_nama);
-            $check_trans = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM transaksi WHERE kategori = '$cat_escaped'");
-            $trans_row = mysqli_fetch_assoc($check_trans);
+        // Cari nama kategori berdasarkan ID
+        $cat_query = mysqli_query($koneksi, "SELECT nama FROM kategori WHERE id = $cat_id");
+        if ($cat_query && mysqli_num_rows($cat_query) > 0) {
+            $cat_row = mysqli_fetch_assoc($cat_query);
+            $cat_nama = $cat_row['nama'];
             
-            if ($trans_row['total'] > 0) {
-                $error_msg = "Kategori '$cat_nama' sedang digunakan oleh " . $trans_row['total'] . " transaksi aktif. Ubah atau hapus transaksi tersebut terlebih dahulu.";
+            // Cek proteksi sistem
+            if (in_array($cat_nama, $system_categories)) {
+                $error_msg = "Kategori bawaan system '$cat_nama' dilindungi dan tidak boleh dihapus.";
             } else {
-                // Eksekusi hapus aman
-                $delete_query = "DELETE FROM kategori WHERE id = $cat_id";
-                if (mysqli_query($koneksi, $delete_query)) {
-                    $success_msg = "Kategori '$cat_nama' berhasil dihapus dari database.";
+                // Cek apakah ada transaksi aktif menggunakan kategori ini
+                $cat_escaped = mysqli_real_escape_string($koneksi, $cat_nama);
+                $check_trans = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM transaksi WHERE kategori = '$cat_escaped'");
+                $trans_row = mysqli_fetch_assoc($check_trans);
+                
+                if ($trans_row['total'] > 0) {
+                    $error_msg = "Kategori '$cat_nama' sedang digunakan oleh " . $trans_row['total'] . " transaksi aktif. Ubah atau hapus transaksi tersebut terlebih dahulu.";
                 } else {
-                    $error_msg = "Gagal menghapus kategori.";
+                    // Eksekusi hapus aman
+                    $delete_query = "DELETE FROM kategori WHERE id = $cat_id";
+                    if (mysqli_query($koneksi, $delete_query)) {
+                        $success_msg = "Kategori '$cat_nama' berhasil dihapus dari database.";
+                    } else {
+                        $error_msg = "Gagal menghapus kategori.";
+                    }
                 }
             }
+        } else {
+            $error_msg = "Kategori tidak ditemukan.";
         }
-    } else {
-        $error_msg = "Kategori tidak ditemukan.";
     }
 }
 
@@ -2375,7 +2458,7 @@ $active_page = 'pengaturan';
 
     <div class="row g-4">
         <!-- Kolom Kiri: Ganti Tema Warna Aplikasi -->
-        <div class="col-lg-6">
+        <div class="col-lg-<?= ($user_role === 'user') ? '12' : '6'; ?>">
             <div class="card main-card p-4 p-md-5 h-100">
                 <div class="d-flex align-items-center gap-3 mb-4">
                     <div class="p-3 rounded-4 bg-primary-subtle d-inline-block">
@@ -2471,6 +2554,7 @@ $active_page = 'pengaturan';
             </div>
         </div>
 
+        <?php if ($user_role !== 'user'): ?>
         <!-- Kolom Kanan: Manage Kategori Transaksi -->
         <div class="col-lg-6">
             <div class="card main-card p-4 p-md-5 h-100">
@@ -2524,6 +2608,7 @@ $active_page = 'pengaturan';
                 </div>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 
 </div>
@@ -2556,6 +2641,463 @@ $active_page = 'pengaturan';
         });
     });
 </script>
+</body>
+</html>`;
+
+export const LAPORAN_PHP = `<?php
+// laporan.php
+// Halaman laporan keuangan dengan filter dinamis dan ekspor Excel & PDF
+
+session_start();
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
+    header("Location: login.php");
+    exit();
+}
+
+require_once 'koneksi.php';
+
+$user_role = $_SESSION['role'] ?? 'admin';
+$user_username = $_SESSION['username'] ?? 'user';
+
+// Ambil parameter filter dari GET
+$filter_jenis = $_GET['jenis'] ?? '';
+$filter_kategori = $_GET['kategori'] ?? '';
+$filter_mulai = $_GET['start_date'] ?? '';
+$filter_selesai = $_GET['end_date'] ?? '';
+
+// Membangun query bersyarat dinamis
+$conds = [];
+
+// Proteksi level 'user' -> hanya bisa akses transaksi milik dia sendiri
+if ($user_role === 'user') {
+    $conds[] = "username = '" . mysqli_real_escape_string($koneksi, $user_username) . "'";
+}
+
+if (!empty($filter_jenis) && in_array($filter_jenis, ['pemasukan', 'pengeluaran'])) {
+    $conds[] = "jenis = '" . mysqli_real_escape_string($koneksi, $filter_jenis) . "'";
+}
+
+if (!empty($filter_kategori)) {
+    $conds[] = "kategori = '" . mysqli_real_escape_string($koneksi, $filter_kategori) . "'";
+}
+
+if (!empty($filter_mulai)) {
+    $conds[] = "tanggal >= '" . mysqli_real_escape_string($koneksi, $filter_mulai) . "'";
+}
+
+if (!empty($filter_selesai)) {
+    $conds[] = "tanggal <= '" . mysqli_real_escape_string($koneksi, $filter_selesai) . "'";
+}
+
+$where_clause = "";
+if (count($conds) > 0) {
+    $where_clause = "WHERE " . implode(" AND ", $conds);
+}
+
+// 1. Ekspor Excel jika diminta
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    header("Content-Type: application/vnd.ms-excel; charset=UTF-8");
+    header("Content-Disposition: attachment; filename=Laporan_Keuangan_" . date('Ymd_His') . ".xls");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+
+    // Query data berdasarkan filter untuk Excel
+    $query_excel = "SELECT * FROM transaksi \$where_clause ORDER BY tanggal DESC, id DESC";
+    $result_excel = mysqli_query($koneksi, $query_excel);
+
+    // Ambil rekap untuk Excel
+    $q_pem_excel = "SELECT SUM(jumlah) AS total FROM transaksi " . ($where_clause ? \$where_clause . " AND jenis='pemasukan'" : "WHERE jenis='pemasukan'");
+    $q_pen_excel = "SELECT SUM(jumlah) AS total FROM transaksi " . ($where_clause ? \$where_clause . " AND jenis='pengeluaran'" : "WHERE jenis='pengeluaran'");
+    
+    $res_pem = mysqli_query($koneksi, $q_pem_excel);
+    $row_pem = mysqli_fetch_assoc($res_pem);
+    $total_pem = $row_pem['total'] ?? 0;
+
+    $res_pen = mysqli_query($koneksi, $q_pen_excel);
+    $row_pen = mysqli_fetch_assoc($res_pen);
+    $total_pen = $row_pen['total'] ?? 0;
+    
+    $saldo = $total_pem - $total_pen;
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            table { border-collapse: collapse; width: 100%; font-family: sans-serif; }
+            th { background-color: #2563eb; color: #ffffff; border: 1px solid #cbd5e1; padding: 10px; font-weight: bold; text-align: left; }
+            td { border: 1px solid #cbd5e1; padding: 8px; }
+            .judul { font-size: 18px; font-weight: bold; margin-bottom: 5px; text-align: center; }
+            .subjudul { font-size: 12px; color: #64748b; margin-bottom: 20px; text-align: center; }
+            .text-success { color: #10b981; font-weight: bold; }
+            .text-danger { color: #ef4444; font-weight: bold; }
+            .rekap-table { margin-bottom: 20px; width: 350px; }
+            .rekap-table th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
+        </style>
+    </head>
+    <body>
+        <div class="judul">LAPORAN REKAPITULASI KEUANGAN</div>
+        <div class="subjudul">Diekspor Pada: <?= date('d-m-Y H:i:s'); ?> | Pengguna: <?= htmlspecialchars($user_username); ?></div>
+
+        <table class="rekap-table">
+            <tr>
+                <th colspan="2">REKAPITULASI FILTER AKTIF</th>
+            </tr>
+            <tr>
+                <td>Total Kas Masuk (Pemasukan)</td>
+                <td class="text-success">Rp <?= number_format($total_pem, 0, ',', '.'); ?></td>
+            </tr>
+            <tr>
+                <td>Total Kas Keluar (Pengeluaran)</td>
+                <td class="text-danger">Rp <?= number_format($total_pen, 0, ',', '.'); ?></td>
+            </tr>
+            <tr>
+                <td><strong>Saldo Bersih Akhir</strong></td>
+                <td><strong>Rp <?= number_format($saldo, 0, ',', '.'); ?></strong></td>
+            </tr>
+        </table>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">No</th>
+                    <th style="width: 120px;">Tanggal</th>
+                    <th>Keterangan Transaksi</th>
+                    <th style="width: 150px;">Kategori</th>
+                    <th style="width: 120px;">Jenis</th>
+                    <th style="width: 150px; text-align: right;">Nominal (Rp)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php 
+                $num = 1;
+                if (mysqli_num_rows($result_excel) > 0): 
+                    while ($row = mysqli_fetch_assoc($result_excel)): ?>
+                        <tr>
+                            <td><?= $num++; ?></td>
+                            <td><?= date('d-m-Y', strtotime($row['tanggal'])); ?></td>
+                            <td><?= htmlspecialchars($row['keterangan']); ?></td>
+                            <td><?= htmlspecialchars($row['kategori']); ?></td>
+                            <td><?= ($row['jenis'] === 'pemasukan') ? 'Pemasukan' : 'Pengeluaran'; ?></td>
+                            <td style="text-align: right;" class="<?= ($row['jenis'] === 'pemasukan') ? 'text-success' : 'text-danger'; ?>">
+                                <?= ($row['jenis'] === 'pemasukan') ? '+' : '-'; ?> <?= number_format($row['jumlah'], 0, ',', '.'); ?>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" style="text-align: center;">Tidak ada data transaksi yang cocok dengan filter.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </body>
+    </html>
+    <?php
+    exit();
+}
+
+// Formulasi query untuk halaman HTML interaktif
+$query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi " . ($where_clause ? \$where_clause . " AND jenis='pemasukan'" : "WHERE jenis='pemasukan'");
+$res_pemasukan = mysqli_query($koneksi, $query_pemasukan);
+$row_pemasukan = mysqli_fetch_assoc($res_pemasukan);
+$total_pemasukan = $row_pemasukan['total'] ?? 0;
+
+$query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi " . ($where_clause ? \$where_clause . " AND jenis='pengeluaran'" : "WHERE jenis='pengeluaran'");
+$res_pengeluaran = mysqli_query($koneksi, $query_pengeluaran);
+$row_pengeluaran = mysqli_fetch_assoc($res_pengeluaran);
+$total_pengeluaran = $row_pengeluaran['total'] ?? 0;
+
+$saldo_akhir = $total_pemasukan - $total_pengeluaran;
+
+$query_transaksi = "SELECT * FROM transaksi \$where_clause ORDER BY tanggal DESC, id DESC";
+$result_transaksi = mysqli_query($koneksi, $query_transaksi);
+
+// Ambil daftar kategori unik untuk filter dropdown
+$query_cats = mysqli_query($koneksi, "SELECT * FROM kategori ORDER BY nama ASC");
+$all_categories = [];
+if ($query_cats) {
+    while ($c = mysqli_fetch_assoc($query_cats)) {
+        $all_categories[] = $c;
+    }
+}
+
+// Fungsi Helper format Rupiah
+if (!function_exists('rupiah')) {
+    function rupiah($angka) {
+        return "Rp " . number_format($angka, 0, ',', '.');
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeuanganKu - Laporan Komprehensif</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            background: #ffffff;
+        }
+        .text-pemasukan {
+            color: #10b981 !important;
+        }
+        .text-pengeluaran {
+            color: #ef4444 !important;
+        }
+        .badge-cat {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 6px;
+        }
+        
+        /* Media Print Styling kustom untuk Ekspor PDF Sempurna */
+        @media print {
+            .sidebar-container, .mobile-header, .top-header-bar, .filter-card, .btn-export-group, .btn, hr, .user-profile-section {
+                display: none !important;
+            }
+            .main-canvas-area {
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #ffffff !important;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 20px !important;
+            }
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+            }
+            .table th {
+                background-color: #f1f5f9 !important;
+                color: #000000 !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            .table td {
+                border: 1px solid #cbd5e1 !important;
+            }
+            .print-header {
+                display: block !important;
+                margin-bottom: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<?php
+$active_page = 'laporan';
+include 'sidebar.php';
+?>
+
+<div class="container-fluid py-4">
+    
+    <!-- Bagian Kepala Print (Disembunyikan di layar, ditampilkan hanya ketika dicetak) -->
+    <div class="print-header d-none text-center">
+        <h3 class="fw-bold text-dark text-uppercase mb-1">Laporan Catatan Transaksi Keuangan</h3>
+        <p class="text-muted small mb-0">Dicetak melalui portal online KeuanganKu pada: <?= date('d-m-Y H:i:s'); ?> | Petugas: <?= htmlspecialchars($_SESSION['nama']); ?></p>
+        <hr class="border-secondary mt-3 mb-4" style="opacity: 0.5;">
+    </div>
+
+    <!-- Header & Tombol Print Utama -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <h3 class="fw-black text-slate-800 tracking-tight mb-1">Laporan Keuangan</h3>
+            <p class="text-muted mb-0 small">Saring data arus kas secara akurat dan ekspor ke lembar kerja Excel atau cetak PDF langsung.</p>
+        </div>
+        
+        <!-- Action Group -->
+        <div class="d-flex flex-wrap gap-2 btn-export-group">
+            <button onclick="window.print();" class="btn btn-outline-danger d-flex align-items-center gap-2 rounded-3 px-3.5 py-2 fw-bold text-xs" style="background-color: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2)">
+                <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+                <span>Cetak / Ekspor PDF</span>
+            </button>
+            <a href="laporan.php?export=excel&jenis=<?= urlencode($filter_jenis) ?>&kategori=<?= urlencode($filter_kategori) ?>&start_date=<?= urlencode($filter_mulai) ?>&end_date=<?= urlencode($filter_selesai) ?>" class="btn btn-outline-success d-flex align-items-center gap-2 rounded-3 px-3.5 py-2 fw-bold text-xs" style="background-color: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2)">
+                <i class="bi bi-file-earmark-spreadsheet-fill text-success fs-5"></i>
+                <span>Ekspor ke Excel (.XLS)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Panel Filter Komprehensif -->
+    <div class="card main-card filter-card p-4 mb-4">
+        <form action="laporan.php" method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="jenis" class="form-label text-xs fw-extrabold text-slate-700">Tipe Aliran Dana</label>
+                <select class="form-select rounded-3 text-xs" id="jenis" name="jenis">
+                    <option value="" <?= ($filter_jenis === '') ? 'selected' : ''; ?>>Semua Aliran (Kas Masuk & Keluar)</option>
+                    <option value="pemasukan" <?= ($filter_jenis === 'pemasukan') ? 'selected' : ''; ?>>Pemasukan Saja (+)</option>
+                    <option value="pengeluaran" <?= ($filter_jenis === 'pengeluaran') ? 'selected' : ''; ?>>Pengeluaran Saja (-)</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="kategori" class="form-label text-xs fw-extrabold text-slate-700">Kategori Khusus</label>
+                <select class="form-select rounded-3 text-xs" id="kategori" name="kategori">
+                    <option value="" <?= ($filter_kategori === '') ? 'selected' : ''; ?>>Semua Kategori</option>
+                    <?php foreach ($all_categories as $cat): ?>
+                        <option value="<?= htmlspecialchars($cat['nama']); ?>" <?= ($filter_kategori === $cat['nama']) ? 'selected' : ''; ?>>
+                            <?= htmlspecialchars($cat['nama']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-2.5 col-sm-6">
+                <label for="start_date" class="form-label text-xs fw-extrabold text-slate-700">Tanggal Mulai</label>
+                <input type="date" class="form-control rounded-3 text-xs" id="start_date" name="start_date" value="<?= htmlspecialchars($filter_mulai); ?>">
+            </div>
+
+            <div class="col-md-2.5 col-sm-6">
+                <label for="end_date" class="form-label text-xs fw-extrabold text-slate-700">Tanggal Akhir</label>
+                <input type="date" class="form-control rounded-3 text-xs" id="end_date" name="end_date" value="<?= htmlspecialchars($filter_selesai); ?>">
+            </div>
+
+            <div class="col-md-1 d-grid align-items-end">
+                <button type="submit" class="btn btn-primary rounded-3 text-center fw-extrabold py-2 d-flex align-items-center justify-content-center" style="min-height: 38px;">
+                    <i class="bi bi-funnel-fill"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Ringkasan Filter Terkait -->
+    <div class="row g-4 mb-4">
+        <!-- Pemasukan Terfilter -->
+        <div class="col-md-4">
+            <div class="card v-card-sum border-start border-success border-5 h-100 p-3 bg-white">
+                <div class="card-body py-1">
+                    <span class="text-uppercase small fw-bold text-muted d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em">Pemasukan (Terfilter)</span>
+                    <span class="fs-4 fw-black text-pemasukan"><?= rupiah($total_pemasukan); ?></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pengeluaran Terfilter -->
+        <div class="col-md-4">
+            <div class="card v-card-sum border-start border-danger border-5 h-100 p-3 bg-white">
+                <div class="card-body py-1">
+                    <span class="text-uppercase small fw-bold text-muted d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em">Pengeluaran (Terfilter)</span>
+                    <span class="fs-4 fw-black text-pengeluaran"><?= rupiah($total_pengeluaran); ?></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saldo Bersih -->
+        <div class="col-md-4">
+            <div class="card v-card-sum border-start border-primary border-5 h-100 p-3 bg-white">
+                <div class="card-body py-1">
+                    <span class="text-uppercase small fw-bold text-muted d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em">Saldo Bersih Terfilter</span>
+                    <span class="fs-4 fw-black <?= ($saldo_akhir >= 0) ? 'text-primary' : 'text-danger'; ?>">
+                        <?= rupiah($saldo_akhir); ?>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel Data Utama Terlapor -->
+    <div class="card main-card overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="bg-light table-light">
+                        <tr>
+                            <th class="py-3 px-4 text-center text-muted text-uppercase fw-bold font-monospace" style="width: 70px;">No</th>
+                            <th class="py-3 text-muted text-uppercase fw-bold font-monospace" style="width: 130px;">Tanggal</th>
+                            <th class="py-3 text-muted text-uppercase fw-bold font-monospace">Keterangan</th>
+                            <th class="py-3 text-muted text-uppercase fw-bold font-monospace" style="width: 140px;">Kategori</th>
+                            <th class="py-3 text-muted text-uppercase fw-bold font-monospace text-center" style="width: 130px;">Tipe</th>
+                            <th class="py-3 text-end text-muted text-uppercase fw-bold font-monospace" style="width: 180px; padding-right: 24px;">Jumlah (Rp)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $no = 1;
+                        if (mysqli_num_rows($result_transaksi) > 0): 
+                            while ($row = mysqli_fetch_assoc($result_transaksi)): ?>
+                                <tr class="border-bottom border-light-subtle">
+                                    <td class="py-3.5 text-center font-monospace font-semibold text-slate-500"><?= $no++; ?></td>
+                                    <td class="py-3.5 font-monospace font-medium">
+                                        <?= date('d-m-Y', strtotime($row['tanggal'])); ?>
+                                    </td>
+                                    <td class="py-3.5">
+                                        <div class="fw-bold text-slate-800 text-truncate" style="max-width: 320px;" title="<?= htmlspecialchars($row['keterangan']); ?>">
+                                            <?= htmlspecialchars($row['keterangan']); ?>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5">
+                                        <span class="badge-cat">
+                                            <?= htmlspecialchars($row['kategori']); ?>
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 text-center">
+                                        <?php if ($row['jenis'] === 'pemasukan'): ?>
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xs fw-extrabold uppercase">
+                                                <i class="bi bi-chevron-double-up me-1"></i> Masuk
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 text-xs fw-extrabold uppercase">
+                                                <i class="bi bi-chevron-double-down me-1"></i> Keluar
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="py-3.5 text-end font-monospace font-bold card-text-val align-middle" style="padding-right: 24px;">
+                                        <?php if ($row['jenis'] === 'pemasukan'): ?>
+                                            <span class="text-pemasukan">+ <?= rupiah($row['jumlah']); ?></span>
+                                        <?php else: ?>
+                                            <span class="text-pengeluaran">- <?= rupiah($row['jumlah']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-journal-x fs-1 mb-3 text-secondary d-block"></i>
+                                    <h5>Tidak Ada Data Yang Ditemukan</h5>
+                                    <p class="small text-muted mb-0">Sesuaikan kriteria filter di atas untuk mengeksplorasi kembali catatan.</p>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+</div>
+        </div> <!-- End of inner p-3 p-md-4 -->
+        
+        <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
+            <div class="container">
+                <span>Sistem Catatan Keuangan Native PHP & copy; <?= date('Y'); ?></span>
+            </div>
+        </footer>
+    </div> <!-- End of main-canvas-area -->
+</div> <!-- End of app-layout-wrapper -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>`;
 
