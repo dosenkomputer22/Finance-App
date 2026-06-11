@@ -17,8 +17,8 @@ import { UserSim } from '../types';
 
 interface UsersViewProps {
   users: UserSim[];
-  onAddUser: (username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => void;
-  onUpdateUser: (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => void;
+  onAddUser: (username: string, nama: string, role: 'admin' | 'superadmin' | 'user', password?: string) => void;
+  onUpdateUser: (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user', password?: string, status?: 'pending' | 'approved') => void;
   onDeleteUser: (id: string) => void;
   currentUser: { username: string; role: 'admin' | 'superadmin' | 'user' };
   appLogoColor?: string;
@@ -39,7 +39,7 @@ export default function UsersView({
   const [username, setUsername] = useState('');
   const [nama, setNama] = useState('');
   const [role, setRole] = useState<'admin' | 'superadmin' | 'user'>('admin');
-  const [password, setPassword] = useState(''); // Simulated password field for audit logs
+  const [password, setPassword] = useState(''); // Writable password field
   const [formError, setFormError] = useState('');
 
   const getColorClasses = () => {
@@ -69,6 +69,7 @@ export default function UsersView({
     setUsername(user.username);
     setNama(user.nama);
     setRole(user.role);
+    setPassword(''); // Reset so they can type a new one optionally
     setFormError('');
     setEditingId(user.id);
     setIsAdding(false);
@@ -99,16 +100,18 @@ export default function UsersView({
     }
 
     if (editingId) {
-      onUpdateUser(editingId, username.trim(), nama.trim(), role);
+      // If editing, only pass password if it has been filled in the form
+      onUpdateUser(editingId, username.trim(), nama.trim(), role, password.trim() ? password.trim() : undefined);
       setEditingId(null);
     } else {
-      onAddUser(username.trim(), nama.trim(), role);
+      onAddUser(username.trim(), nama.trim(), role, password.trim() ? password.trim() : 'admin123');
       setIsAdding(false);
     }
 
     // Reset
     setUsername('');
     setNama('');
+    setPassword('');
   };
 
   const handleDelete = (user: UserSim) => {
@@ -185,7 +188,7 @@ export default function UsersView({
                         <p className="text-xs text-slate-400 font-semibold font-mono mt-0.5">@{user.username}</p>
                         
                         {/* Role tag badge info */}
-                        <div className="mt-1.5 flex items-center gap-1.5">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           {isSuper ? (
                             <span className="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-50 font-extrabold px-2 py-0.5 rounded-full border border-indigo-100 uppercase">
                               <ShieldCheck className="w-3 h-3 text-indigo-500" />
@@ -196,8 +199,20 @@ export default function UsersView({
                               Admin Keuangan
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-55 font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase">
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase">
                               User Biasa
+                            </span>
+                          )}
+
+                          {user.status === 'pending' ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase animate-pulse">
+                              <AlertCircle className="w-3 h-3 text-amber-500" />
+                              Pending ACC
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 font-extrabold px-2 py-0.5 rounded-full border border-emerald-100 uppercase">
+                              <CheckCircle className="w-3 h-3 text-emerald-500" />
+                              Approved
                             </span>
                           )}
                         </div>
@@ -208,11 +223,23 @@ export default function UsersView({
                     <div className="flex items-center gap-1.5 self-end sm:self-center">
                       {currentUser.role === 'superadmin' ? (
                         <>
+                          {user.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => onUpdateUser(user.id, user.username, user.nama, user.role, undefined, 'approved')}
+                              className="mr-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[10px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all hover:scale-[1.02] cursor-pointer"
+                              title="Setujui pendaftaran akun ini secara langsung (ACC)"
+                            >
+                              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              ACC AKUN
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(user)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-transparent hover:border-blue-100 cursor-pointer"
-                            title="Edit User"
+                            title="Edit User / Ganti Password"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
@@ -316,20 +343,23 @@ export default function UsersView({
                   </div>
                 </div>
 
-                {!editingId && (
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 pl-1">
-                      Password default
-                    </label>
-                    <input
-                      type="text"
-                      value={password}
-                      disabled
-                      className="w-full text-xs font-mono font-bold px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-500"
-                    />
-                    <span className="text-[9px] text-slate-400 font-medium pl-1 mt-1 block">Password bawaan uji coba adalah <strong className="text-slate-500">admin123</strong> (hashed di MySQL)</span>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 pl-1">
+                    {editingId ? 'Ganti Password (Opsional)' : 'Password Akun'}
+                  </label>
+                  <input
+                    type="text"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={editingId ? 'Kosongkan jika tidak ada perubahan' : 'Masukkan password (contoh: kancil123)'}
+                    className="w-full text-xs font-mono font-bold px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                  />
+                  <span className="text-[9px] text-slate-400 font-medium pl-1 mt-1 block">
+                    {editingId 
+                      ? 'Isi password baru untuk menyetel ulang kata sandi pengguna ini.' 
+                      : 'Password bawaan testing jika dikosongkan adalah admin123.'}
+                  </span>
+                </div>
 
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 pl-1">

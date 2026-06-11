@@ -10,8 +10,25 @@ if (!isset($_SESSION['login']) || $_SESSION['login'] !== true) {
 
 require_once 'koneksi.php';
 
-// Ambil daftar seluruh user
-$query_users = "SELECT id, username, nama, role FROM users ORDER BY id ASC";
+// Aksi approval registrasi (Khusus Super Admin)
+if (($_SESSION['role'] ?? '') === 'superadmin' && isset($_GET['act']) && $_GET['act'] === 'approve') {
+    $approve_id = intval($_GET['id'] ?? 0);
+    $query_appr = "UPDATE users SET status = 'approved' WHERE id = ?";
+    $stmt_appr = mysqli_prepare($koneksi, $query_appr);
+    if ($stmt_appr) {
+        mysqli_stmt_bind_param($stmt_appr, "i", $approve_id);
+        if (mysqli_stmt_execute($stmt_appr)) {
+            header("Location: kelola_user.php?msg=" . urlencode("Registrasi pengguna telah disetujui (ACC) sukses!"));
+        } else {
+            header("Location: kelola_user.php?err=" . urlencode("Gagal menyetujui pengguna di database."));
+        }
+        mysqli_stmt_close($stmt_appr);
+        exit();
+    }
+}
+
+// Ambil daftar seluruh user (termasuk kolom status)
+$query_users = "SELECT id, username, nama, role, status FROM users ORDER BY id ASC";
 $result_users = mysqli_query($koneksi, $query_users);
 ?>
 <!DOCTYPE html>
@@ -90,8 +107,9 @@ include 'sidebar.php';
                             <th class="ps-4 py-3" style="width: 80px;">No</th>
                             <th>Nama Lengkap</th>
                             <th>Username</th>
-                            <th style="width: 180px;">Level Peran</th>
-                            <th class="text-center" style="width: 180px;">Aksi</th>
+                            <th style="width: 150px;">Level Peran</th>
+                            <th style="width: 140px;">Status ACC</th>
+                            <th class="text-center" style="width: 220px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,10 +128,22 @@ include 'sidebar.php';
                                         <span class="badge bg-secondary-subtle border border-secondary text-secondary px-3 py-1.5 rounded-3 text-uppercase"><i class="bi bi-person-fill me-1"></i>Admin</span>
                                     <?php endif; ?>
                                 </td>
+                                <td>
+                                    <?php if (($row['status'] ?? 'approved') === 'approved'): ?>
+                                        <span class="badge bg-success-subtle border border-success-200 text-success px-2 py-1.5 rounded-3"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-warning-subtle border border-warning-200 text-warning px-2 py-1.5 rounded-3"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-center">
                                     <?php if (($_SESSION['role'] ?? '') === 'superadmin'): ?>
-                                        <div class="btn-group gap-1">
-                                            <a href="edit_user.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-primary rounded-2" title="Edit Akun"><i class="bi bi-pencil-square"></i></a>
+                                        <div class="px-2 d-flex justify-content-center gap-1">
+                                            <?php if (($row['status'] ?? 'approved') === 'pending'): ?>
+                                                <a href="kelola_user.php?act=approve&id=<?= $row['id']; ?>" class="btn btn-sm btn-success rounded-2 text-white px-2.5" title="Setujui Akun (ACC)">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>ACC
+                                                </a>
+                                            <?php endif; ?>
+                                            <a href="edit_user.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-outline-primary rounded-2" title="Edit Akun / Ganti Password"><i class="bi bi-pencil-square"></i></a>
                                             
                                             <?php if ($row['id'] == ($_SESSION['user_id'] ?? 0) || $row['username'] === 'admin'): ?>
                                                 <button class="btn btn-sm btn-outline-secondary rounded-2" disabled title="Keamanan: Tidak diizinkan mendelete akun sendiri atau superadmin utama"><i class="bi bi-trash-fill"></i></button>

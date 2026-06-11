@@ -12,14 +12,15 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password` VARCHAR(255) NOT NULL,
   `nama` VARCHAR(100) NOT NULL,
   `role` VARCHAR(20) NOT NULL DEFAULT 'admin',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Menambahkan Akun Default (username: admin -> Super Admin, username: budi -> Admin)
 -- Password default adalah admin123 (telah di-hash menggunakan bcrypt password_hash())
-INSERT INTO `users` (`id`, `username`, `password`, `nama`, `role`) VALUES
-(1, 'admin', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Administrator Keuangan', 'superadmin'),
-(2, 'budi', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Budi Santoso', 'admin')
+INSERT INTO `users` (`id`, `username`, `password`, `nama`, `role`, `status`) VALUES
+(1, 'admin', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Administrator Keuangan', 'superadmin', 'approved'),
+(2, 'budi', '$2y$10$vO.mXpX2xR10.C8UfPyX8.1X7N.TfKIdwN9YhEqO5C7h3ZHe.7S.e', 'Budi Santoso', 'admin', 'approved')
 ON DUPLICATE KEY UPDATE id=id;
 
 -- Struktur Tabel transaksi

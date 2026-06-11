@@ -106,17 +106,26 @@ if (!$table_check_users) {
       `password` VARCHAR(255) NOT NULL,
       `nama` VARCHAR(100) NOT NULL,
       `role` VARCHAR(20) NOT NULL DEFAULT 'admin',
+      `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
     @mysqli_query($koneksi, $sql_table_users);
 
     // 2. Isi Akun Default (Password: admin123)
     $hashed_pw = password_hash('admin123', PASSWORD_DEFAULT);
-    $sql_insert_users = "INSERT INTO `users` (`id`, `username`, `password`, `nama`, `role`) VALUES
-    (1, 'admin', '$hashed_pw', 'Administrator Keuangan', 'superadmin'),
-    (2, 'budi', '$hashed_pw', 'Budi Santoso', 'admin')
+    $sql_insert_users = "INSERT INTO `users` (`id`, `username`, `password`, `nama`, `role`, `status`) VALUES
+    (1, 'admin', '$hashed_pw', 'Administrator Keuangan', 'superadmin', 'approved'),
+    (2, 'budi', '$hashed_pw', 'Budi Santoso', 'admin', 'approved')
     ON DUPLICATE KEY UPDATE id=id;";
     @mysqli_query($koneksi, $sql_insert_users);
+} else {
+    // Jalankan auto-migration: pastikan kolom 'status' ada di tabel users
+    $status_col_check = @mysqli_query($koneksi, "SHOW COLUMNS FROM `users` LIKE 'status'");
+    if ($status_col_check && mysqli_num_rows($status_col_check) == 0) {
+        @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'pending'");
+        // Ubah akun default yang sudah ada menjadi approved agar tidak terkunci
+        @mysqli_query($koneksi, "UPDATE `users` SET `status` = 'approved' WHERE username IN ('admin', 'budi')");
+    }
 }
 
 $table_check_transaksi = @mysqli_query($koneksi, "SELECT 1 FROM `transaksi` LIMIT 1");
@@ -149,6 +158,16 @@ if (!$table_check_transaksi) {
 $col_check_theme = @mysqli_query($koneksi, "SHOW COLUMNS FROM `users` LIKE 'theme'");
 if ($col_check_theme && mysqli_num_rows($col_check_theme) == 0) {
     @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `theme` VARCHAR(30) NOT NULL DEFAULT 'slate'");
+}
+
+// Tambahkan kolom pengaturan tampil/sembunyi komponen dashboard jika belum ada
+$col_check_dashboard = @mysqli_query($koneksi, "SHOW COLUMNS FROM `users` LIKE 'show_card_in'");
+if ($col_check_dashboard && mysqli_num_rows($col_check_dashboard) == 0) {
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `show_card_in` INT(1) NOT NULL DEFAULT 1");
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `show_card_out` INT(1) NOT NULL DEFAULT 1");
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `show_card_balance` INT(1) NOT NULL DEFAULT 1");
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `show_chart_trend` INT(1) NOT NULL DEFAULT 1");
+    @mysqli_query($koneksi, "ALTER TABLE `users` ADD COLUMN `show_chart_prop` INT(1) NOT NULL DEFAULT 1");
 }
 
 // 6. Pastikan tabel kategori transaksi ada

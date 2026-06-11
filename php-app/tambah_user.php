@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Masukkan data baru dengan password di-hash aman
             $hashed_pw = password_hash($password, PASSWORD_DEFAULT);
-            $query_ins = "INSERT INTO users (username, password, nama, role) VALUES (?, ?, ?, ?)";
+            $query_ins = "INSERT INTO users (username, password, nama, role, status) VALUES (?, ?, ?, ?, 'approved')";
             $stmt_ins = mysqli_prepare($koneksi, $query_ins);
             
             if ($stmt_ins) {

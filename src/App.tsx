@@ -126,15 +126,37 @@ export default function App() {
   // --- Persistent User Management ---
   const [usersSim, setUsersSim] = useState<UserSim[]>(() => {
     const saved = localStorage.getItem('keuangan_users_sim');
-    return saved ? JSON.parse(saved) : [
-      { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' },
-      { id: '2', username: 'budi', nama: 'Budi Santoso', role: 'admin' }
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((u: any) => ({
+          ...u,
+          status: u.status || 'approved',
+          password: u.password || 'admin123'
+        }));
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return [
+      { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin', password: 'admin123', status: 'approved' },
+      { id: '2', username: 'budi', nama: 'Budi Santoso', role: 'admin', password: 'admin123', status: 'approved' }
     ];
   });
 
   const [currentUser, setCurrentUser] = useState<UserSim>(() => {
     const saved = localStorage.getItem('keuangan_current_user_sim');
-    return saved ? JSON.parse(saved) : { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin' };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          status: parsed.status || 'approved',
+          password: parsed.password || 'admin123'
+        };
+      } catch (e) {}
+    }
+    return { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin', password: 'admin123', status: 'approved' };
   });
 
   // --- PHP Login simulation session state ---
@@ -239,20 +261,35 @@ export default function App() {
     }
   };
 
-  const handleAddUser = (username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => {
+  const handleAddUser = (username: string, nama: string, role: 'admin' | 'superadmin' | 'user', password?: string) => {
     const newUser: UserSim = {
       id: Date.now().toString(),
       username,
       nama,
-      role
+      role,
+      password: password || 'admin123',
+      status: 'approved'
     };
     setUsersSim([...usersSim, newUser]);
   };
 
-  const handleUpdateUser = (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user') => {
-    setUsersSim(usersSim.map(u => u.id === id ? { ...u, username, nama, role } : u));
+  const handleUpdateUser = (id: string, username: string, nama: string, role: 'admin' | 'superadmin' | 'user', password?: string, status?: 'pending' | 'approved') => {
+    setUsersSim(usersSim.map(u => u.id === id ? { 
+      ...u, 
+      username, 
+      nama, 
+      role,
+      ...(password ? { password } : {}),
+      ...(status ? { status } : {})
+    } : u));
     if (currentUser.id === id) {
-      setCurrentUser({ ...currentUser, username, nama, role });
+      setCurrentUser(prev => ({ 
+        ...prev, 
+        username, 
+        nama, 
+        role,
+        ...(status ? { status } : {})
+      }));
     }
   };
 
@@ -408,6 +445,17 @@ export default function App() {
           setCurrentUser(user);
           setIsLoggedInSim(true);
           localStorage.setItem('keuangan_is_logged_in_sim', 'true');
+        }}
+        onRegisterUser={(username, nama, password) => {
+          const newUser: UserSim = {
+            id: Date.now().toString(),
+            username,
+            nama,
+            role: 'admin',
+            password: password || 'admin123',
+            status: 'pending' // starts with pending approval (Pending ACC)
+          };
+          setUsersSim([...usersSim, newUser]);
         }}
       />
     );

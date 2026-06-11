@@ -24,4 +24,6 @@ export interface UserSim {
   username: string;
   nama: string;
   role: 'admin' | 'superadmin' | 'user';
+  password?: string;
+  status?: 'pending' | 'approved';
 }
