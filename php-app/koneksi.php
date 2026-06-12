@@ -111,13 +111,8 @@ if (!$table_check_users) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
     @mysqli_query($koneksi, $sql_table_users);
 
-    // 2. Isi Akun Default (Password: admin123)
-    $hashed_pw = password_hash('admin123', PASSWORD_DEFAULT);
-    $sql_insert_users = "INSERT INTO `users` (`id`, `username`, `password`, `nama`, `role`, `status`) VALUES
-    (1, 'admin', '$hashed_pw', 'Administrator Keuangan', 'superadmin', 'approved'),
-    (2, 'budi', '$hashed_pw', 'Budi Santoso', 'admin', 'approved')
-    ON DUPLICATE KEY UPDATE id=id;";
-    @mysqli_query($koneksi, $sql_insert_users);
+    // 2. Isi Akun Default (Hapus: Dihapus agar pendaftar pertama menjadi Super Admin)
+    // database dimulai dalam kondisi bersih tanpa data user bawaan agar pengisian mandiri dapat berjalan.
 } else {
     // Jalankan auto-migration: pastikan kolom 'status' ada di tabel users
     $status_col_check = @mysqli_query($koneksi, "SHOW COLUMNS FROM `users` LIKE 'status'");
@@ -138,6 +133,7 @@ if (!$table_check_transaksi) {
       `kategori` VARCHAR(100) NOT NULL DEFAULT 'Lainnya',
       `jenis` ENUM('pemasukan','pengeluaran') NOT NULL,
       `jumlah` INT(11) NOT NULL,
+      `username` VARCHAR(50) NOT NULL DEFAULT 'admin',
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
     @mysqli_query($koneksi, $sql_table_transaksi);
@@ -152,6 +148,12 @@ if (!$table_check_transaksi) {
     (6, '2026-06-08', 'Menerima Komisi Afiliasi Landing Page', 'Freelance', 'pemasukan', 600000)
     ON DUPLICATE KEY UPDATE id=id;";
     @mysqli_query($koneksi, $sql_insert_dummy_transaksi);
+} else {
+    // Jalankan auto-migration: pastikan kolom 'username' ada di tabel transaksi
+    $username_col_check = @mysqli_query($koneksi, "SHOW COLUMNS FROM `transaksi` LIKE 'username'");
+    if ($username_col_check && mysqli_num_rows($username_col_check) == 0) {
+        @mysqli_query($koneksi, "ALTER TABLE `transaksi` ADD COLUMN `username` VARCHAR(50) NOT NULL DEFAULT 'admin'");
+    }
 }
 
 // 5. Pastikan kolom theme ada di tabel users (untuk mendukung fitur ubah tema kustom)
@@ -191,5 +193,66 @@ if (!$table_check_kategori) {
     ('Lainnya')
     ON DUPLICATE KEY UPDATE nama=nama;";
     @mysqli_query($koneksi, $sql_insert_default_kategori);
+}
+
+// 7. Pastikan tabel pengaturan_sistem ada
+$table_check_settings = @mysqli_query($koneksi, "SELECT 1 FROM `pengaturan_sistem` LIMIT 1");
+if (!$table_check_settings) {
+    $sql_table_settings = "CREATE TABLE IF NOT EXISTS `pengaturan_sistem` (
+      `kunci` VARCHAR(50) NOT NULL UNIQUE,
+      `nilai` TEXT NOT NULL,
+      PRIMARY KEY (`kunci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_settings);
+
+    // Isi Default Pengaturan Sistem
+    @mysqli_query($koneksi, "INSERT IGNORE INTO `pengaturan_sistem` (`kunci`, `nilai`) VALUES
+    ('nama_aplikasi', 'KeuanganKu'),
+    ('logo_icon', 'bi-wallet2'),
+    ('logo_image_url', '')");
+}
+
+// 8. Pastikan tabel transaksi_berulang ada
+$table_check_berulang = @mysqli_query($koneksi, "SELECT 1 FROM `transaksi_berulang` LIMIT 1");
+if (!$table_check_berulang) {
+    $sql_table_berulang = "CREATE TABLE IF NOT EXISTS `transaksi_berulang` (
+      `id` INT(11) NOT NULL AUTO_INCREMENT,
+      `keterangan` VARCHAR(255) NOT NULL,
+      `kategori` VARCHAR(100) NOT NULL DEFAULT 'Lainnya',
+      `jenis` ENUM('pemasukan','pengeluaran') NOT NULL,
+      `jumlah` INT(11) NOT NULL,
+      `frekuensi` VARCHAR(50) NOT NULL DEFAULT 'Bulanan',
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+    @mysqli_query($koneksi, $sql_table_berulang);
+
+    // Isi Default Transaksi Berulang
+    @mysqli_query($koneksi, "INSERT INTO `transaksi_berulang` (`id`, `keterangan`, `kategori`, `jenis`, `jumlah`, `frekuensi`) VALUES
+    (1, 'Sewa VPS Cloud Run Pro', 'Tagihan', 'pengeluaran', 120000, 'Bulanan'),
+    (2, 'Langganan Internet Biznet', 'Tagihan', 'pengeluaran', 350000, 'Bulanan'),
+    (3, 'Penghasilan Google AdSense', 'Freelance', 'pemasukan', 2400000, 'Bulanan'),
+    (4, 'Gaji Pokok Karyawan Tetap', 'Gaji', 'pemasukan', 5500000, 'Bulanan')
+    ON DUPLICATE KEY UPDATE id=id;");
+}
+
+// Ambil Pengaturan Sistem Global
+$sys_settings = [];
+$res_sys = @mysqli_query($koneksi, "SELECT * FROM `pengaturan_sistem`");
+if ($res_sys && mysqli_num_rows($res_sys) > 0) {
+    while ($row = mysqli_fetch_assoc($res_sys)) {
+        $sys_settings[$row['kunci']] = $row['nilai'];
+    }
+}
+
+// Global Variables
+$app_name = !empty($sys_settings['nama_aplikasi']) ? $sys_settings['nama_aplikasi'] : 'KeuanganKu';
+$app_logo_icon = !empty($sys_settings['logo_icon']) ? $sys_settings['logo_icon'] : 'bi-wallet2';
+$app_logo_image_url = !empty($sys_settings['logo_image_url']) ? $sys_settings['logo_image_url'] : '';
+
+// Global Formatting Helper as requested to prevent fatal errors
+if (!function_exists('rupiah')) {
+    function rupiah($angka) {
+        return 'Rp ' . number_format((float)$angka, 0, ',', '.');
+    }
 }
 ?>

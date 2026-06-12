@@ -125,6 +125,50 @@ $theme_cfg = $theme_colors[$selected_theme];
         margin-right: 12px;
     }
 
+    /* Sub-menu styling for Transaksi dropdown */
+    .sub-menu-nav {
+        padding-left: 12px;
+        margin-bottom: 6px;
+    }
+    
+    .sidebar-sub-link {
+        display: flex;
+        align-items: center;
+        padding: 9px 16px;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 500;
+        text-decoration: none;
+        border-radius: 10px;
+        margin: 2px 16px 2px 28px;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    
+    .sidebar-sub-link:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+    }
+    
+    .sidebar-sub-link.active {
+        color: #ffffff !important;
+        font-weight: 750;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-left: 3px solid <?= $theme_cfg['sidebar_active']; ?>;
+    }
+    
+    .sidebar-sub-link i {
+        font-size: 0.9rem;
+        margin-right: 10px;
+        opacity: 0.7;
+    }
+
+    [aria-expanded="true"] .toggle-chevron {
+        transform: rotate(180deg);
+    }
+    .toggle-chevron {
+        transition: transform 0.2s ease;
+    }
+
     .user-profile-section {
         background-color: rgba(255, 255, 255, 0.06);
         border-radius: 16px;
@@ -229,9 +273,13 @@ $theme_cfg = $theme_colors[$selected_theme];
         <!-- Brand Header Logo -->
         <div class="sidebar-brand">
             <a href="index.php" class="d-flex align-items-center text-white text-decoration-none">
-                <i class="bi bi-wallet2 text-white fs-3 me-2"></i>
+                <?php if (!empty($app_logo_image_url)): ?>
+                    <img src="<?= htmlspecialchars($app_logo_image_url); ?>" alt="Logo" class="rounded-pill me-2 bg-white p-1" style="width: 34px; height: 34px; object-fit: contain;">
+                <?php else: ?>
+                    <i class="bi <?= htmlspecialchars($app_logo_icon); ?> text-white fs-3 me-2"></i>
+                <?php endif; ?>
                 <div>
-                    <h5 class="fw-bold mb-0 tracking-tight" style="letter-spacing: -0.025em; color: #ffffff;">KeuanganKu</h5>
+                    <h5 class="fw-bold mb-0 tracking-tight text-truncate" style="letter-spacing: -0.025em; color: #ffffff; max-width: 170px;" title="<?= htmlspecialchars($app_name); ?>"><?= htmlspecialchars($app_name); ?></h5>
                     <span class="badge bg-primary-subtle font-monospace" style="font-size: 0.65rem;">v1.3 - Pro</span>
                 </div>
             </a>
@@ -244,15 +292,49 @@ $theme_cfg = $theme_colors[$selected_theme];
                 <span>Dashboard</span>
             </a>
             
-            <a href="tambah.php" class="sidebar-nav-link <?= ($active_page === 'tambah_transaksi') ? 'active' : ''; ?>">
-                <i class="bi bi-plus-circle-fill"></i>
-                <span>Tambah Transaksi</span>
+            <!-- Dropdown Menu Transaksi -->
+            <?php 
+            $is_transaksi_active = in_array($active_page, ['transaksi', 'pemasukan', 'pengeluaran', 'transaksi_berulang']);
+            ?>
+            <a href="#menuTransaksi" data-bs-toggle="collapse" class="sidebar-nav-link d-flex justify-content-between align-items-center <?= $is_transaksi_active ? 'active' : ''; ?>" aria-expanded="<?= $is_transaksi_active ? 'true' : 'false'; ?>">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Transaksi</span>
+                </div>
+                <i class="bi bi-chevron-down ms-auto toggle-chevron" style="font-size: 0.8rem; margin-right: 0;"></i>
+            </a>
+            <div class="collapse <?= $is_transaksi_active ? 'show' : ''; ?>" id="menuTransaksi">
+                <div class="sub-menu-nav">
+                    <a href="tambah.php?filter_jenis=semua" class="sidebar-sub-link <?= ($active_page === 'transaksi') ? 'active' : ''; ?>">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>Semua Transaksi</span>
+                    </a>
+                    <a href="tambah.php?filter_jenis=pemasukan" class="sidebar-sub-link <?= ($active_page === 'pemasukan') ? 'active' : ''; ?>">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>Pemasukan</span>
+                    </a>
+                    <a href="tambah.php?filter_jenis=pengeluaran" class="sidebar-sub-link <?= ($active_page === 'pengeluaran') ? 'active' : ''; ?>">
+                        <i class="bi bi-graph-down-arrow"></i>
+                        <span>Pengeluaran</span>
+                    </a>
+                    <a href="tambah.php?filter_jenis=berulang" class="sidebar-sub-link <?= ($active_page === 'transaksi_berulang') ? 'active' : ''; ?>">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Transaksi Berulang</span>
+                    </a>
+                </div>
+            </div>
+            
+            <a href="laporan.php" class="sidebar-nav-link <?= ($active_page === 'laporan') ? 'active' : ''; ?>">
+                <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                <span>Laporan</span>
             </a>
             
+            <?php if ($user_role === 'superadmin'): ?>
             <a href="kelola_user.php" class="sidebar-nav-link <?= ($active_page === 'kelola_user') ? 'active' : ''; ?>">
                 <i class="bi bi-people-fill"></i>
                 <span>Kelola User</span>
             </a>
+            <?php endif; ?>
             
             <a href="pengaturan.php" class="sidebar-nav-link <?= ($active_page === 'pengaturan') ? 'active' : ''; ?>">
                 <i class="bi bi-gear-fill"></i>
@@ -287,8 +369,12 @@ $theme_cfg = $theme_colors[$selected_theme];
         <!-- Mobile Header Bar -->
         <header class="mobile-header d-md-none d-flex justify-content-between align-items-center">
             <a href="index.php" class="d-flex align-items-center text-white text-decoration-none">
-                <i class="bi bi-wallet2 text-primary fs-4 me-2"></i>
-                <h6 class="fw-bold mb-0">KeuanganKu</h6>
+                <?php if (!empty($app_logo_image_url)): ?>
+                    <img src="<?= htmlspecialchars($app_logo_image_url); ?>" alt="Logo" class="rounded-pill me-2 bg-white p-0.5" style="width: 28px; height: 28px; object-fit: contain;">
+                <?php else: ?>
+                    <i class="bi <?= htmlspecialchars($app_logo_icon); ?> text-primary fs-4 me-2"></i>
+                <?php endif; ?>
+                <h6 class="fw-bold mb-0 text-truncate" style="max-width: 180px;"><?= htmlspecialchars($app_name); ?></h6>
             </a>
             <button class="btn btn-dark border-secondary px-2.5 py-1.5 rounded-3" onclick="toggleSidebarMenu()">
                 <i class="bi bi-list fs-4 font-extrabold text-white"></i>
@@ -298,7 +384,7 @@ $theme_cfg = $theme_colors[$selected_theme];
         <!-- Top breadcrumb bar for large screens -->
         <header class="bg-white border-bottom py-3 px-4 d-none d-md-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
-                <span class="text-muted text-uppercase fw-bold font-monospace text-xs" style="font-size: 0.7rem; letter-spacing: 0.05em">Aplikasi KeuanganKu Native PHP</span>
+                <span class="text-muted text-uppercase fw-bold font-monospace text-xs" style="font-size: 0.7rem; letter-spacing: 0.05em">Aplikasi <?= htmlspecialchars($app_name); ?> Native PHP</span>
                 <i class="bi bi-chevron-right text-muted" style="font-size: 0.8rem;"></i>
                 <span class="text-dark fw-bold text-xs" style="font-size: 0.8rem;"><?= htmlspecialchars(ucwords(str_replace('_', ' ', $active_page))); ?></span>
             </div>

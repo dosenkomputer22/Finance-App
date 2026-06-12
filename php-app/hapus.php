@@ -14,14 +14,24 @@ require_once 'koneksi.php';
 if (isset($_GET['id']) && !empty(trim($_GET['id']))) {
     // Cast ke integer untuk memastikan keamanan ekstra (menghindari SQL injection non-string parameter)
     $id = (int)$_GET['id'];
+    $user_role = $_SESSION['role'] ?? 'admin';
+    $user_username = $_SESSION['username'] ?? 'admin';
 
-    // Menyiapkan parameterized DELETE query statement
-    $query_delete = "DELETE FROM transaksi WHERE id = ?";
+    // Menyiapkan parameterized DELETE query statement dengan proteksi username
+    if ($user_role === 'user') {
+        $query_delete = "DELETE FROM transaksi WHERE id = ? AND username = ?";
+    } else {
+        $query_delete = "DELETE FROM transaksi WHERE id = ?";
+    }
     $stmt_delete = mysqli_prepare($koneksi, $query_delete);
 
     if ($stmt_delete) {
-        // Ikat parameter ID
-        mysqli_stmt_bind_param($stmt_delete, "i", $id);
+        // Ikat parameter ID dan username
+        if ($user_role === 'user') {
+            mysqli_stmt_bind_param($stmt_delete, "is", $id, $user_username);
+        } else {
+            mysqli_stmt_bind_param($stmt_delete, "i", $id);
+        }
 
         // Eksekusi statement kueri
         mysqli_stmt_execute($stmt_delete);

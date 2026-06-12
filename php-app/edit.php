@@ -18,13 +18,23 @@ if (!isset($_GET['id']) || empty(trim($_GET['id']))) {
 
 $id = (int)$_GET['id'];
 $error = '';
+$user_role = $_SESSION['role'] ?? 'admin';
+$user_username = $_SESSION['username'] ?? 'admin';
 
-// 1. Ambil data transaksi lama berdasarkan ID untuk ditaruh di form
-$query_select = "SELECT * FROM transaksi WHERE id = ?";
+// 1. Ambil data transaksi lama berdasarkan ID untuk ditaruh di form (dengan filter username jika level user biasa)
+if ($user_role === 'user') {
+    $query_select = "SELECT * FROM transaksi WHERE id = ? AND username = ?";
+} else {
+    $query_select = "SELECT * FROM transaksi WHERE id = ?";
+}
 $stmt_select = mysqli_prepare($koneksi, $query_select);
 
 if ($stmt_select) {
-    mysqli_stmt_bind_param($stmt_select, "i", $id);
+    if ($user_role === 'user') {
+        mysqli_stmt_bind_param($stmt_select, "is", $id, $user_username);
+    } else {
+        mysqli_stmt_bind_param($stmt_select, "i", $id);
+    }
     mysqli_stmt_execute($stmt_select);
     $result = mysqli_stmt_get_result($stmt_select);
     
@@ -58,12 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $jumlah_int = (int) $jumlah;
 
-        // Persingkat pembaruan menggunakan parameterized set statement
-        $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ?";
+        // Persingkat pembaruan menggunakan parameterized set statement dengan perlindungan username
+        if ($user_role === 'user') {
+            $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ? AND username = ?";
+        } else {
+            $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ?";
+        }
         $stmt_update = mysqli_prepare($koneksi, $query_update);
 
         if ($stmt_update) {
-            mysqli_stmt_bind_param($stmt_update, "ssssii", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id);
+            if ($user_role === 'user') {
+                mysqli_stmt_bind_param($stmt_update, "ssssiis", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id, $user_username);
+            } else {
+                mysqli_stmt_bind_param($stmt_update, "ssssii", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id);
+            }
 
             if (mysqli_stmt_execute($stmt_update)) {
                 // Alihkan setelah sukses diupdate

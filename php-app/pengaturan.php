@@ -139,6 +139,38 @@ if (isset($_POST['update_dashboard_config'])) {
     }
 }
 
+// 6. Aksi: Ubah Layout Desain Sistem
+if (isset($_POST['update_system_design'])) {
+    if ($user_role === 'user') {
+        $error_msg = "Akses Ditolak: Tingkat peran 'user' tidak diperkenankan mengubah desain sistem.";
+    } else {
+        $new_app_name = trim($_POST['nama_aplikasi'] ?? '');
+        $new_logo_icon = trim($_POST['logo_icon'] ?? 'bi-wallet2');
+        $new_logo_img = trim($_POST['logo_image_url'] ?? '');
+
+        if (empty($new_app_name)) {
+            $error_msg = "Nama aplikasi tidak boleh kosong!";
+        } else {
+            $escaped_name = mysqli_real_escape_string($koneksi, $new_app_name);
+            $escaped_icon = mysqli_real_escape_string($koneksi, $new_logo_icon);
+            $escaped_img = mysqli_real_escape_string($koneksi, $new_logo_img);
+
+            $q1 = mysqli_query($koneksi, "INSERT INTO pengaturan_sistem (kunci, nilai) VALUES ('nama_aplikasi', '$escaped_name') ON DUPLICATE KEY UPDATE nilai = '$escaped_name'");
+            $q2 = mysqli_query($koneksi, "INSERT INTO pengaturan_sistem (kunci, nilai) VALUES ('logo_icon', '$escaped_icon') ON DUPLICATE KEY UPDATE nilai = '$escaped_icon'");
+            $q3 = mysqli_query($koneksi, "INSERT INTO pengaturan_sistem (kunci, nilai) VALUES ('logo_image_url', '$escaped_img') ON DUPLICATE KEY UPDATE nilai = '$escaped_img'");
+
+            if ($q1 && $q2 && $q3) {
+                $success_msg = "Desain sistem & identitas aplikasi berhasil diperbarui!";
+                $app_name = $new_app_name;
+                $app_logo_icon = $new_logo_icon;
+                $app_logo_image_url = $new_logo_img;
+            } else {
+                $error_msg = "Gagal memperbarui konfigurasi desain sistem.";
+            }
+        }
+    }
+}
+
 // Ambil kustomisasi dashboard saat ini milik pengguna ini
 $show_card_in = 1;
 $show_card_out = 1;
@@ -319,6 +351,11 @@ $active_page = 'pengaturan';
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-kategori" data-bs-toggle="pill" data-bs-target="#pane-kategori" type="button" role="tab" aria-controls="pane-kategori" aria-selected="false">
                         <i class="bi bi-tags-fill me-2"></i>Kategori Transaksi
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-desainsistem" data-bs-toggle="pill" data-bs-target="#pane-desainsistem" type="button" role="tab" aria-controls="pane-desainsistem" aria-selected="false">
+                        <i class="bi bi-window-sidebar me-2"></i>Desain Sistem
                     </button>
                 </li>
                 <?php endif; ?>
@@ -585,6 +622,100 @@ $active_page = 'pengaturan';
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- 4. TAB LAYOUT DESAIN SISTEM -->
+        <?php if ($user_role !== 'user'): ?>
+        <div class="tab-pane fade" id="pane-desainsistem" role="tabpanel" aria-labelledby="tab-desainsistem">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card main-card p-4 p-md-5 shadow-sm mb-4">
+                        <div class="d-flex align-items-center gap-3 mb-4">
+                            <div class="p-4 rounded-4 bg-primary-subtle d-inline-block text-primary">
+                                <i class="bi bi-window-sidebar fs-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="fw-bold text-dark mb-0">Layout Desain Sistem</h4>
+                                <p class="text-muted small mb-0">Atur kustomisasi nama aplikasi dan ganti logo perusahaan pada header dan login</p>
+                            </div>
+                        </div>
+
+                        <form action="pengaturan.php" method="POST" id="form-sys-design">
+                            <input type="hidden" name="update_system_design" value="1">
+                            
+                            <!-- Input: Nama Aplikasi -->
+                            <div class="mb-4">
+                                <label for="nama_aplikasi" class="form-label fw-bold text-slate-800 mb-2">Nama Aplikasi / Perusahaan</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-window"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="nama_aplikasi" name="nama_aplikasi" value="<?= htmlspecialchars($app_name); ?>" placeholder="Contoh: KeuanganKu, Cahaya Corp" required maxlength="50">
+                                </div>
+                                <div class="form-text text-muted mt-1 small">Nama ini akan diletakkan pada Header Sidebar, Breadcrumb, dan Form Login.</div>
+                            </div>
+
+                            <!-- Input: Logo Image URL -->
+                            <div class="mb-4">
+                                <label for="logo_image_url" class="form-label fw-bold text-slate-800 mb-2">URL Logo Gambar Perusahaan (Pilihan Utama)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-link-45deg"></i></span>
+                                    <input type="url" class="form-control border-start-0 ps-0" id="logo_image_url" name="logo_image_url" value="<?= htmlspecialchars($app_logo_image_url); ?>" placeholder="Contoh: https://images.unsplash.com/photo-1599305445671-ac291c95aba9?w=100">
+                                </div>
+                                <div class="form-text text-muted mt-1 small">Opsional. Masukkan URL tautan gambar logo secara langsung (direct link). Jika diisi, logo ini akan menggantikan Icon di atas. Kosongkan untuk menggunakan Icon Bootstrap di bawah.</div>
+                            </div>
+
+                            <!-- Seleksi: Icon Cadangan (Bootstrap Icons) -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-slate-800 mb-2">Pilih Icon Cadangan (Apabila URL Logo Gambar Kosong)</label>
+                                <div class="row g-2">
+                                    <?php
+                                    $available_icons = [
+                                        'bi-wallet2' => 'Dompet wallet2',
+                                        'bi-bank' => 'Bank Klasik',
+                                        'bi-cash-coin' => 'Koin Kas',
+                                        'bi-briefcase' => 'Bisnis Mandiri',
+                                        'bi-building' => 'Gedung Kantor',
+                                        'bi-calculator' => 'Akuntansi',
+                                        'bi-graph-up-arrow' => 'Investasi Tren',
+                                        'bi-shield-check' => 'Sistem Aman'
+                                    ];
+                                    foreach ($available_icons as $ico_class => $ico_lbl):
+                                        $is_sel = ($app_logo_icon === $ico_class);
+                                    ?>
+                                        <div class="col-6 col-sm-3">
+                                            <div class="border rounded-3 p-2 text-center style-icon-card cursor-pointer <?= $is_sel ? 'border-primary bg-primary-subtle text-primary fw-bold' : 'bg-light text-secondary'; ?>" data-icon="<?= $ico_class; ?>" style="transition: all 0.2s; cursor: pointer;">
+                                                <i class="bi <?= $ico_class; ?> fs-3 d-block mb-1"></i>
+                                                <span class="small d-block text-truncate" style="font-size: 0.75rem;"><?= $ico_lbl; ?></span>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <input type="hidden" name="logo_icon" id="selected_logo_icon" value="<?= htmlspecialchars($app_logo_icon); ?>">
+                            </div>
+
+                            <!-- Real-time Live Preview Box -->
+                            <div class="mb-4 p-3 bg-light rounded-4 border border-light-subtle">
+                                <span class="text-muted small fw-bold" style="font-size: 0.75rem;"><i class="bi bi-eye-fill me-1 text-primary"></i> Live Pratinjau Desain Header Sidebar:</span>
+                                <div class="d-flex align-items-center mt-2.5 p-3 rounded-3" style="background-color: #0f172a; color: white;">
+                                    <div id="preview-logo-container" class="me-3 d-flex align-items-center justify-content-center bg-white p-1 rounded-circle" style="width: 38px; height: 38px;">
+                                        <!-- Will be filled by JS -->
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-white" id="preview-app-name"><?= htmlspecialchars($app_name); ?></h6>
+                                        <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.62rem;">v1.3 - Pro</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid col-md-8 mx-auto mt-4">
+                                <button type="submit" class="btn btn-primary rounded-3 py-2.5 fw-bold shadow-sm">
+                                    <i class="bi bi-check2-circle me-1.5"></i> Simpan Desain Sistem Baru
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
         
     </div>
 
@@ -633,6 +764,69 @@ $active_page = 'pengaturan';
             }
         });
     });
+
+    // --- SCRIPT LAYOUT DESAIN SISTEM INTERACTIVE ---
+    const appNameInput = document.getElementById('nama_aplikasi');
+    const logoImgInput = document.getElementById('logo_image_url');
+    const previewAppName = document.getElementById('preview-app-name');
+    const previewLogoContainer = document.getElementById('preview-logo-container');
+    const selectedLogoIconInput = document.getElementById('selected_logo_icon');
+
+    function updateHeaderPreview() {
+        if (!appNameInput || !previewAppName) return;
+        
+        // Update live app name text
+        previewAppName.textContent = appNameInput.value.trim() || 'KeuanganKu';
+        
+        // Get image URL or fallback to chosen icon
+        const imgUrl = logoImgInput.value.trim();
+        if (imgUrl) {
+            previewLogoContainer.className = 'me-3 d-flex align-items-center justify-content-center bg-white p-1 rounded-circle border';
+            previewLogoContainer.style.width = '38px';
+            previewLogoContainer.style.height = '38px';
+            previewLogoContainer.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="Logo" class="rounded-circle" style="width: 28px; height: 28px; object-fit: contain;">`;
+        } else {
+            const selectedIcon = selectedLogoIconInput.value || 'bi-wallet2';
+            previewLogoContainer.className = 'me-3 d-flex align-items-center justify-content-center text-primary bg-primary-subtle rounded-circle';
+            previewLogoContainer.style.width = '38px';
+            previewLogoContainer.style.height = '38px';
+            previewLogoContainer.innerHTML = `<i class="bi ${selectedIcon} fs-4"></i>`;
+        }
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    if (appNameInput) {
+        appNameInput.addEventListener('input', updateHeaderPreview);
+        logoImgInput.addEventListener('input', updateHeaderPreview);
+        
+        // Select icon cards on click
+        document.querySelectorAll('.style-icon-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove selected attributes
+                document.querySelectorAll('.style-icon-card').forEach(c => {
+                    c.classList.remove('border-primary', 'bg-primary-subtle', 'text-primary', 'fw-bold');
+                    c.classList.add('bg-light', 'text-secondary');
+                });
+                // Highlight selected card
+                this.classList.add('border-primary', 'bg-primary-subtle', 'text-primary', 'fw-bold');
+                this.classList.remove('bg-light', 'text-secondary');
+                
+                selectedLogoIconInput.value = this.getAttribute('data-icon');
+                updateHeaderPreview();
+            });
+        });
+
+        // Run preview load
+        updateHeaderPreview();
+    }
 </script>
 </body>
 </html>

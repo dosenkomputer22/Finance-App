@@ -88,7 +88,6 @@ export default function Sidebar({
   const menuItems = [
     { id: 'dashboard' as ActiveTab, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transactions' as ActiveTab, label: 'Transaksi', icon: ArrowLeftRight },
-    { id: 'add-transaction' as ActiveTab, label: 'Tambah Transaksi', icon: PlusSquare },
     { id: 'reports' as ActiveTab, label: 'Laporan', icon: FileText },
     { id: 'categories' as ActiveTab, label: 'Kategori', icon: Tags },
     { id: 'users' as ActiveTab, label: 'Kelola User', icon: Users },

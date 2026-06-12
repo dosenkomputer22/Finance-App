@@ -15,14 +15,26 @@ function rupiah($angka) {
     return "Rp " . number_format($angka, 0, ',', '.');
 }
 
+$user_role = $_SESSION['role'] ?? 'admin';
+$user_username = $_SESSION['username'] ?? 'admin';
+$db_username = mysqli_real_escape_string($koneksi, $user_username);
+
 // 1. Ambil & hitung total pemasukan
-$query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan'";
+if ($user_role === 'user') {
+    $query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan' AND username='$db_username'";
+} else {
+    $query_pemasukan = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pemasukan'";
+}
 $res_pemasukan = mysqli_query($koneksi, $query_pemasukan);
 $row_pemasukan = mysqli_fetch_assoc($res_pemasukan);
 $total_pemasukan = $row_pemasukan['total'] ?? 0;
 
 // 2. Ambil & hitung total pengeluaran
-$query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran'";
+if ($user_role === 'user') {
+    $query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran' AND username='$db_username'";
+} else {
+    $query_pengeluaran = "SELECT SUM(jumlah) AS total FROM transaksi WHERE jenis='pengeluaran'";
+}
 $res_pengeluaran = mysqli_query($koneksi, $query_pengeluaran);
 $row_pengeluaran = mysqli_fetch_assoc($res_pengeluaran);
 $total_pengeluaran = $row_pengeluaran['total'] ?? 0;
@@ -31,7 +43,11 @@ $total_pengeluaran = $row_pengeluaran['total'] ?? 0;
 $saldo_akhir = $total_pemasukan - $total_pengeluaran;
 
 // 4. Ambil daftar transaksi dari database diurutkan dari tanggal terbaru
-$query_transaksi = "SELECT * FROM transaksi ORDER BY tanggal DESC, id DESC";
+if ($user_role === 'user') {
+    $query_transaksi = "SELECT * FROM transaksi WHERE username='$db_username' ORDER BY tanggal DESC, id DESC";
+} else {
+    $query_transaksi = "SELECT * FROM transaksi ORDER BY tanggal DESC, id DESC";
+}
 $result_transaksi = mysqli_query($koneksi, $query_transaksi);
 ?>
 <!DOCTYPE html>
@@ -202,7 +218,7 @@ include 'sidebar.php';
                 <h5 class="fw-bold mb-0">Riwayat Catatan Transaksi</h5>
             </div>
             <div>
-                <a href="tambah.php" class="btn btn-add rounded-3 px-3 py-2">
+                <a href="tambah.php?add=1" class="btn btn-add rounded-3 px-3 py-2">
                     <i class="bi bi-plus-circle-fill me-2"></i>Tambah Transaksi
                 </a>
             </div>

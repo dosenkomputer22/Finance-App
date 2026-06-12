@@ -105,6 +105,7 @@ export default function App() {
 
   // --- UI Routing Navigation State ---
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('keuangan_sidebar_collapsed');
@@ -138,10 +139,8 @@ export default function App() {
         // Fallback
       }
     }
-    return [
-      { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin', password: 'admin123', status: 'approved' },
-      { id: '2', username: 'budi', nama: 'Budi Santoso', role: 'admin', password: 'admin123', status: 'approved' }
-    ];
+    // Start completely empty to allow testing "pendaftar pertama = superadmin" rule
+    return [];
   });
 
   const [currentUser, setCurrentUser] = useState<UserSim>(() => {
@@ -156,7 +155,7 @@ export default function App() {
         };
       } catch (e) {}
     }
-    return { id: '1', username: 'admin', nama: 'Administrator Keuangan', role: 'superadmin', password: 'admin123', status: 'approved' };
+    return { id: '', username: '', nama: '', role: 'admin', password: '', status: 'pending' };
   });
 
   // --- PHP Login simulation session state ---
@@ -447,15 +446,24 @@ export default function App() {
           localStorage.setItem('keuangan_is_logged_in_sim', 'true');
         }}
         onRegisterUser={(username, nama, password) => {
+          const isFirst = usersSim.length === 0;
           const newUser: UserSim = {
             id: Date.now().toString(),
             username,
             nama,
-            role: 'admin',
+            role: isFirst ? 'superadmin' : 'admin',
             password: password || 'admin123',
-            status: 'pending' // starts with pending approval (Pending ACC)
+            status: isFirst ? 'approved' : 'pending'
           };
           setUsersSim([...usersSim, newUser]);
+        }}
+        onClearDb={() => {
+          localStorage.removeItem('keuangan_users_sim');
+          localStorage.removeItem('keuangan_current_user_sim');
+          localStorage.removeItem('keuangan_is_logged_in_sim');
+          setUsersSim([]);
+          setIsLoggedInSim(false);
+          setCurrentUser({ id: '', username: '', nama: '', role: 'admin', password: '', status: 'pending' });
         }}
       />
     );
@@ -546,7 +554,10 @@ export default function App() {
                     categories={categories}
                     onEdit={setEditingTransaction}
                     onDelete={handleDeleteTransaction}
-                    onAddClick={() => setActiveTab('add-transaction')}
+                    onAddClick={() => {
+                      setActiveTab('transactions');
+                      setIsAddFormOpen(true);
+                    }}
                     formatRupiah={formatRupiah}
                     isDashboardView={true}
                     onTabChange={(tab) => setActiveTab(tab)}
@@ -556,23 +567,26 @@ export default function App() {
 
               {/* TAB 2: TRANSACTIONS HISTORY LIST */}
               {activeTab === 'transactions' && (
-                <TransactionsTable 
-                  transactions={transactions}
-                  categories={categories}
-                  onEdit={setEditingTransaction}
-                  onDelete={handleDeleteTransaction}
-                  onAddClick={() => setActiveTab('add-transaction')}
-                  formatRupiah={formatRupiah}
-                />
-              )}
-
-              {/* TAB 3: INPUT ADDTIONAL TRANSACTION */}
-              {activeTab === 'add-transaction' && (
-                <AddTransactionView 
-                  categories={categories}
-                  onAddTransaction={handleAddTransaction}
-                  onCancel={() => setActiveTab('dashboard')}
-                />
+                <div className="space-y-6">
+                  {isAddFormOpen && (
+                    <AddTransactionView 
+                      categories={categories}
+                      onAddTransaction={(tx) => {
+                        handleAddTransaction(tx);
+                        setIsAddFormOpen(false);
+                      }}
+                      onCancel={() => setIsAddFormOpen(false)}
+                    />
+                  )}
+                  <TransactionsTable 
+                    transactions={transactions}
+                    categories={categories}
+                    onEdit={setEditingTransaction}
+                    onDelete={handleDeleteTransaction}
+                    onAddClick={() => setIsAddFormOpen(!isAddFormOpen)}
+                    formatRupiah={formatRupiah}
+                  />
+                </div>
               )}
 
               {/* TAB 4: REPORTS SUMMARY DETAIL */}
