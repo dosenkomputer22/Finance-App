@@ -54,6 +54,8 @@ Sebelum atau setelah mengunggah, Anda harus menyunting file koneksi database:
 2. Masuklah ke dalam direktori/folder bernama **public_html** (ini adalah folder publik tempat website Anda diakses).
 3. Unggah seluruh file PHP berikut langsung ke dalam `public_html`:
    - `index.php`
+   - `login.php`
+   - `logout.php`
    - `tambah.php`
    - `edit.php`
    - `hapus.php`

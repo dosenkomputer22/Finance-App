@@ -850,6 +850,41 @@ export default function ReportsView({ transactions, formatRupiah }: ReportsViewP
 
             {/* Modal Description, including the precise Iframe Sandbox disclaimer! */}
             <div className="space-y-5 text-xs">
+              {/* Periode Saringan Laporan */}
+              <div className="bg-slate-50 p-4 border border-slate-200/60 rounded-xl space-y-3">
+                <span className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5 font-sans">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  Atur Periode Bulan &amp; Tahun Ekspor
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Pilih Bulan</label>
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+                      className="w-full text-xs font-semibold bg-white border border-slate-205 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                    >
+                      {INDONESIAN_MONTHS.map((name, idx) => (
+                        <option key={idx} value={idx}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Pilih Tahun</label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      className="w-full text-xs font-semibold bg-white border border-slate-205 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="semua">Semua Tahun</option>
+                      {availableYears.map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="p-3.5 bg-blue-50/70 border border-blue-100 text-slate-700 rounded-xl leading-relaxed space-y-1.5">
                 <span className="font-bold text-blue-800 flex items-center gap-1.5 text-[11px]">
                   <Info className="w-4 h-4 shrink-0 text-blue-700" />

@@ -40,7 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($user_data['username'] === 'admin') {
         $role = 'superadmin';
     } else {
-        $role = $_POST['role'] === 'superadmin' ? 'superadmin' : 'admin';
+        // Ambil daftar peran yang valid dari database
+        $valid_roles = [];
+        $roles_res = mysqli_query($koneksi, "SELECT role_key FROM `peran`");
+        if ($roles_res) {
+            while ($r_row = mysqli_fetch_assoc($roles_res)) {
+                $valid_roles[] = $r_row['role_key'];
+            }
+        }
+        $p_role = strtolower(trim($_POST['role'] ?? 'user'));
+        if (in_array($p_role, $valid_roles)) {
+            $role = $p_role;
+        } else {
+            $role = 'user'; // fallback aman
+        }
     }
 
     if (empty($nama) || empty($username)) {
@@ -73,10 +86,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Baru - Edit Pengguna</title>
+    <title>Edit Pengguna - <?= htmlspecialchars($app_name); ?></title>
+    <link rel="shortcut icon" href="<?= htmlspecialchars($app_favicon); ?>" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
-    <style> body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; } </style>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
+        }
+    </style>
 </head>
 <body>
 
@@ -84,12 +126,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $active_page = 'kelola_user';
 include 'sidebar.php';
 ?>
-
-<div class="container py-2" style="max-width: 600px;">
-    <div class="card border-0 rounded-4 shadow-lg p-3">
-        <div class="card-body">
-            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Pengguna</h4>
-            <p class="text-muted small">Silakan sesuaikan pengaturan data user di bawah.</p>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="kelola_user.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Ubah Data Pengguna</h4>
+        </div>
+        <p class="text-muted small mb-4">Silakan sesuaikan pengaturan data user di bawah.</p>
 
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger font-semibold mb-4"><?= $error; ?></div>
@@ -117,8 +161,20 @@ include 'sidebar.php';
                 <div class="mb-4">
                     <label class="form-label small fw-bold">Level Peran (Role)</label>
                     <select name="role" class="form-select rounded-3" <?= $user_data['username'] === 'admin' ? 'disabled' : ''; ?>>
-                        <option value="admin" <?= $user_data['role'] === 'admin' ? 'selected' : ''; ?>>Admin (Melihat/Menulis Transaksi)</option>
-                        <option value="superadmin" <?= $user_data['role'] === 'superadmin' ? 'selected' : ''; ?>>Super Admin (Akses Mutlak Server)</option>
+                        <?php
+                        $roles_q = mysqli_query($koneksi, "SELECT * FROM `peran` ORDER BY id ASC");
+                        if ($roles_q && mysqli_num_rows($roles_q) > 0) {
+                            while ($r_item = mysqli_fetch_assoc($roles_q)) {
+                                $role_key = htmlspecialchars($r_item['role_key']);
+                                $role_name = htmlspecialchars($r_item['role_name']);
+                                $sel = ($user_data['role'] === $role_key) ? 'selected' : '';
+                                echo "<option value=\"$role_key\" $sel>$role_name</option>";
+                            }
+                        } else {
+                            echo '<option value="admin" ' . ($user_data['role'] === 'admin' ? 'selected' : '') . '>Admin</option>';
+                            echo '<option value="superadmin" ' . ($user_data['role'] === 'superadmin' ? 'selected' : '') . '>Superadmin</option>';
+                        }
+                        ?>
                     </select>
                 </div>
 
@@ -127,13 +183,12 @@ include 'sidebar.php';
                     <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan Perubahan</button>
                 </div>
             </form>
-        </div>
     </div>
         </div> <!-- End of inner p-3 p-md-4 -->
         
         <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
             <div class="container">
-                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+                <span><?= $app_footer; ?></span>
             </div>
         </footer>
     </div> <!-- End of main-canvas-area -->

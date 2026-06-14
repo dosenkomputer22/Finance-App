@@ -5,15 +5,17 @@ import {
   Wallet, 
   Database 
 } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, Wallet as WalletType } from '../types';
 
 interface StatsCardsProps {
   transactions: Transaction[];
+  wallets: WalletType[];
   formatRupiah: (angka: number) => string;
 }
 
 export default function StatsCards({
   transactions,
+  wallets,
   formatRupiah
 }: StatsCardsProps) {
   const totalPemasukan = transactions
@@ -24,7 +26,9 @@ export default function StatsCards({
     .filter(t => t.jenis === 'pengeluaran')
     .reduce((sum, t) => sum + t.jumlah, 0);
 
-  const saldoAkhir = totalPemasukan - totalPengeluaran;
+  // Accurate multi-wallet net balance calculation
+  const totalSaldoAwal = wallets.reduce((sum, w) => sum + w.saldo_awal, 0);
+  const saldoAkhir = totalSaldoAwal + totalPemasukan - totalPengeluaran;
   const transactionsCount = transactions.length;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

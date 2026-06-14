@@ -11,7 +11,7 @@ import {
   HelpCircle,
   Database
 } from 'lucide-react';
-import { Transaction, DbConfig, ActiveTab, UserSim } from './types';
+import { Transaction, DbConfig, ActiveTab, UserSim, Wallet } from './types';
 
 // Importing Custom Modular Components
 import Sidebar from './components/Sidebar';
@@ -22,6 +22,8 @@ import TransactionsTable from './components/TransactionsTable';
 import AddTransactionView from './components/AddTransactionView';
 import ReportsView from './components/ReportsView';
 import CategoriesView from './components/CategoriesView';
+import BudgetingView from './components/BudgetingView';
+import WalletsView from './components/WalletsView';
 import SettingsView from './components/SettingsView';
 import PhpLoginSimulation from './components/PhpLoginSimulation';
 import UsersView from './components/UsersView';
@@ -43,21 +45,31 @@ import {
   HAPUS_USER_PHP,
   SIDEBAR_PHP,
   PENGATURAN_PHP,
-  LAPORAN_PHP
+  KATEGORI_PHP,
+  ANGGARAN_PHP,
+  LAPORAN_PHP,
+  REKENING_PHP
 } from './php-templates';
 
 // Primary default transactions history
 const DUMMY_TRANSACTIONS: Transaction[] = [
-  { id: '1', tanggal: '2026-05-23', keterangan: 'Gaji Bulanan Utama', jenis: 'pemasukan', jumlah: 10000000, kategori: 'Gaji' },
-  { id: '2', tanggal: '2026-05-23', keterangan: 'Belanja Sayur & Sembako', jenis: 'pengeluaran', jumlah: 1250000, kategori: 'Belanja' },
-  { id: '3', tanggal: '2026-05-22', keterangan: 'Bensin Motor Matic', jenis: 'pengeluaran', jumlah: 50000, kategori: 'Transportasi' },
-  { id: '4', tanggal: '2026-05-21', keterangan: 'Freelance Desain Logo Brand', jenis: 'pemasukan', jumlah: 2500000, kategori: 'Freelance' },
-  { id: '5', tanggal: '2026-05-21', keterangan: 'Makan Nasi Padang Siang', jenis: 'pengeluaran', jumlah: 25000, kategori: 'Makan & Minum' },
-  { id: '6', tanggal: '2026-05-18', keterangan: 'Bayar Tagihan Wi-Fi', jenis: 'pengeluaran', jumlah: 150000, kategori: 'Tagihan' }
+  { id: '1', tanggal: '2026-05-23', keterangan: 'Gaji Bulanan Utama', jenis: 'pemasukan', jumlah: 10000000, kategori: 'Gaji', dompet: 'Bank BCA' },
+  { id: '2', tanggal: '2026-05-23', keterangan: 'Belanja Sayur & Sembako', jenis: 'pengeluaran', jumlah: 1250000, kategori: 'Belanja', dompet: 'Tunai' },
+  { id: '3', tanggal: '2026-05-22', keterangan: 'Bensin Motor Matic', jenis: 'pengeluaran', jumlah: 50000, kategori: 'Transportasi', dompet: 'Gopay' },
+  { id: '4', tanggal: '2026-05-21', keterangan: 'Freelance Desain Logo Brand', jenis: 'pemasukan', jumlah: 2500000, kategori: 'Freelance', dompet: 'Gopay' },
+  { id: '5', tanggal: '2026-05-21', keterangan: 'Makan Nasi Padang Siang', jenis: 'pengeluaran', jumlah: 25000, kategori: 'Makan & Minum', dompet: 'OVO' },
+  { id: '6', tanggal: '2026-05-18', keterangan: 'Bayar Tagihan Wi-Fi', jenis: 'pengeluaran', jumlah: 150000, kategori: 'Tagihan', dompet: 'Bank BCA' }
 ];
 
 const DEFAULT_CATEGORIES = [
   'Gaji', 'Belanja', 'Transportasi', 'Makan & Minum', 'Tagihan', 'Freelance', 'Lainnya'
+];
+
+const DEFAULT_WALLETS: Wallet[] = [
+  { id: '1', nama: 'Tunai', saldo_awal: 500000 },
+  { id: '2', nama: 'Bank BCA', saldo_awal: 2500000 },
+  { id: '3', nama: 'Gopay', saldo_awal: 250000 },
+  { id: '4', nama: 'OVO', saldo_awal: 100000 }
 ];
 
 export default function App() {
@@ -71,6 +83,29 @@ export default function App() {
     const saved = localStorage.getItem('keuangan_categories');
     return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
   });
+
+  const [wallets, setWallets] = useState<Wallet[]>(() => {
+    const saved = localStorage.getItem('keuangan_wallets');
+    return saved ? JSON.parse(saved) : DEFAULT_WALLETS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('keuangan_wallets', JSON.stringify(wallets));
+  }, [wallets]);
+
+  const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('keuangan_budget_limits');
+    return saved ? JSON.parse(saved) : {
+      'Belanja': 3000000,
+      'Makan & Minum': 1500000,
+      'Transportasi': 800000,
+      'Tagihan': 1200000
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('keuangan_budget_limits', JSON.stringify(budgetLimits));
+  }, [budgetLimits]);
 
   const [dbConfig, setDbConfig] = useState<DbConfig>(() => {
     const saved = localStorage.getItem('keuangan_db_config');
@@ -226,13 +261,15 @@ export default function App() {
     kategori: string;
     jumlah: number;
     keterangan: string;
+    dompet?: string;
   }) => {
     const tx: Transaction = {
       id: String(Date.now()),
-      ...newTx
+      ...newTx,
+      dompet: newTx.dompet || 'Tunai'
     };
     setTransactions([tx, ...transactions]);
-    setActiveTab('dashboard'); // Redirect to dashboard after insert
+    setActiveTab('transactions'); // Go back to transactions
   };
 
   const handleUpdateTransaction = (e: React.FormEvent) => {
@@ -366,6 +403,15 @@ export default function App() {
       case 'sidebar.php':
         rawContent = SIDEBAR_PHP;
         break;
+      case 'kategori.php':
+        rawContent = KATEGORI_PHP;
+        break;
+      case 'anggaran.php':
+        rawContent = ANGGARAN_PHP;
+        break;
+      case 'rekening.php':
+        rawContent = REKENING_PHP;
+        break;
       case 'pengaturan.php':
         rawContent = PENGATURAN_PHP;
         break;
@@ -412,6 +458,9 @@ export default function App() {
     zip.file('edit_user.php', getReplacedPhpTemplate(EDIT_USER_PHP));
     zip.file('hapus_user.php', getReplacedPhpTemplate(HAPUS_USER_PHP));
     zip.file('sidebar.php', getReplacedPhpTemplate(SIDEBAR_PHP));
+    zip.file('kategori.php', getReplacedPhpTemplate(KATEGORI_PHP));
+    zip.file('anggaran.php', getReplacedPhpTemplate(ANGGARAN_PHP));
+    zip.file('rekening.php', getReplacedPhpTemplate(REKENING_PHP));
     zip.file('pengaturan.php', getReplacedPhpTemplate(PENGATURAN_PHP));
     zip.file('README.md', getReplacedPhpTemplate(README_CPANEL));
 
@@ -536,9 +585,98 @@ export default function App() {
                     </div>
                   </div>
 
+                  {(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+
+                    // Calculate month-to-date spent per category
+                    const mtdSpent = transactions.reduce((acc, tx) => {
+                      if (tx.jenis === 'pengeluaran') {
+                        const txDate = new Date(tx.tanggal);
+                        if (!isNaN(txDate.getTime()) && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
+                          acc[tx.kategori] = (acc[tx.kategori] || 0) + tx.jumlah;
+                        }
+                      }
+                      return acc;
+                    }, {} as Record<string, number>);
+
+                    // Filter warnings
+                    const warnings = Object.keys(budgetLimits).map(cat => {
+                      const limit = budgetLimits[cat];
+                      const actual = mtdSpent[cat] || 0;
+                      if (limit > 0) {
+                        const pct = (actual / limit) * 105; // 105 instead of 100 to scale, but we use exact pct = (actual / limit) * 100
+                        const realPct = (actual / limit) * 100;
+                        if (realPct >= 90) {
+                          return {
+                            cat,
+                            limit,
+                            actual,
+                            pct: realPct
+                          };
+                        }
+                      }
+                      return null;
+                    }).filter(Boolean) as Array<{ cat: string; limit: number; actual: number; pct: number }>;
+
+                    if (warnings.length === 0) return null;
+
+                    return (
+                      <div className="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-4 shadow-sm animate-fade-in">
+                        <div className="flex items-start gap-4">
+                          <div className="p-2.5 bg-red-500 text-white rounded-full shrink-0">
+                            <AlertTriangle className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-red-900 flex items-center gap-1.5">
+                              Peringatan Kuota Anggaran Bulanan Lampaui Batas!
+                            </h4>
+                            <p className="text-[11px] text-red-700 mt-1 leading-normal">
+                              Beberapa kategori transaksi di bawah telah melampaui atau mendekati <strong>90%</strong> dari limit kuota pengeluaran bulanan Anda. Gunakan halaman <strong className="text-indigo-600 hover:underline cursor-pointer" onClick={() => setActiveTab('budgeting')}>Anggaran</strong> untuk menyesuaikan.
+                            </p>
+                          </div>
+                        </div>
+
+                        <hr className="border-red-100" />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {warnings.map((w) => {
+                            const isOver = w.actual >= w.limit;
+                            return (
+                              <div key={w.cat} className="bg-white p-3.5 rounded-xl border border-red-200/60 shadow-xs flex flex-col justify-between space-y-2.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-xs text-slate-800 truncate max-w-[130px]" title={w.cat}>{w.cat}</span>
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                                    isOver ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                  }`}>
+                                    {isOver ? 'OVER LIMIT' : 'KRITIS (>90%)'}
+                                  </span>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between text-[10px] text-slate-500">
+                                    <span>Kuota Terpakai: <strong className="text-red-650">{w.pct.toFixed(1)}%</strong></span>
+                                    <span className="font-mono font-semibold text-right">{formatRupiah(w.actual)} / {formatRupiah(w.limit)}</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                      className="h-full bg-red-500 transition-all duration-300" 
+                                      style={{ width: `${Math.min(w.pct, 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Financial Stats Display Cards */}
                   <StatsCards 
                     transactions={transactions} 
+                    wallets={wallets}
                     formatRupiah={formatRupiah} 
                   />
 
@@ -571,6 +709,7 @@ export default function App() {
                   {isAddFormOpen && (
                     <AddTransactionView 
                       categories={categories}
+                      wallets={wallets}
                       onAddTransaction={(tx) => {
                         handleAddTransaction(tx);
                         setIsAddFormOpen(false);
@@ -597,11 +736,33 @@ export default function App() {
                 />
               )}
 
+              {/* TAB 4.5: BUDGET LIMITS AND ALERTS */}
+              {activeTab === 'budgeting' && (
+                <BudgetingView
+                  categories={categories}
+                  budgetLimits={budgetLimits}
+                  setBudgetLimits={setBudgetLimits}
+                  transactions={transactions}
+                  currentUser={currentUser}
+                />
+              )}
+
               {/* TAB 5: MANAGE CATEGORIES LIST */}
               {activeTab === 'categories' && (
                 <CategoriesView 
                   categories={categories} 
                   setCategories={setCategories} 
+                />
+              )}
+
+              {/* TAB 5.5: MANAGE WALLETS LIST */}
+              {activeTab === 'rekening' && (
+                <WalletsView 
+                  wallets={wallets} 
+                  setWallets={setWallets}
+                  transactions={transactions}
+                  setTransactions={setTransactions}
+                  currentUser={currentUser}
                 />
               )}
 

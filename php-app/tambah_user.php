@@ -21,7 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
     $nama = trim($_POST['nama']);
-    $role = $_POST['role'] === 'superadmin' ? 'superadmin' : 'admin';
+    // Ambil daftar peran yang valid dari database
+    $valid_roles = [];
+    $roles_res = mysqli_query($koneksi, "SELECT role_key FROM `peran`");
+    if ($roles_res) {
+        while ($r_row = mysqli_fetch_assoc($roles_res)) {
+            $valid_roles[] = $r_row['role_key'];
+        }
+    }
+    
+    $role = strtolower(trim($_POST['role'] ?? 'user'));
+    if (!in_array($role, $valid_roles)) {
+        $role = 'user'; // fallback aman
+    }
 
     if (empty($username) || empty($password) || empty($nama)) {
         $error = "Penyebab: Seluruh kolom form di bawah wajib dilengkapi!";
@@ -43,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Masukkan data baru dengan password di-hash aman
             $hashed_pw = password_hash($password, PASSWORD_DEFAULT);
-            $query_ins = "INSERT INTO users (username, password, nama, role, status) VALUES (?, ?, ?, ?, 'approved')";
+            $query_ins = "INSERT INTO users (username, password, nama, role) VALUES (?, ?, ?, ?)";
             $stmt_ins = mysqli_prepare($koneksi, $query_ins);
             
             if ($stmt_ins) {
@@ -65,11 +77,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Baru - Tambah Pengguna</title>
+    <title>Tambah Pengguna - <?= htmlspecialchars($app_name); ?></title>
+    <link rel="shortcut icon" href="<?= htmlspecialchars($app_favicon); ?>" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #1e293b;
+        }
+        .main-card {
+            border: none;
+            border-radius: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -78,12 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $active_page = 'kelola_user';
 include 'sidebar.php';
 ?>
-
-<div class="container py-2" style="max-width: 600px;">
-    <div class="card border-0 rounded-4 shadow-lg p-3">
-        <div class="card-body">
-            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-person-plus-fill text-primary me-2"></i>Tambah User Baru</h4>
-            <p class="text-muted small">Daftarkan akun administrator baru ke dalam database keamanan server.</p>
+    <div class="card main-card p-4 p-sm-5 mt-3">
+        <div class="d-flex items-center gap-2 mb-4">
+            <a href="kelola_user.php" class="btn btn-sm btn-outline-secondary rounded-3 me-2">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <h4 class="fw-bold text-slate-800 mb-0">Tambah User Baru</h4>
+        </div>
+        <p class="text-muted small mb-4">Daftarkan akun administrator baru ke dalam database keamanan server.</p>
 
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger py-2.5 rounded-3 border-0 small font-semibold mb-4">
@@ -110,8 +151,19 @@ include 'sidebar.php';
                 <div class="mb-4">
                     <label class="form-label text-slate-700 small fw-bold">Level Peran (Role)</label>
                     <select name="role" class="form-select rounded-3">
-                        <option value="admin">Admin (Hanya Melihat/Menulis Transaksi)</option>
-                        <option value="superadmin">Super Admin (Akses Mutlak Server)</option>
+                        <?php
+                        $roles_q = mysqli_query($koneksi, "SELECT * FROM `peran` ORDER BY id ASC");
+                        if ($roles_q && mysqli_num_rows($roles_q) > 0) {
+                            while ($r_item = mysqli_fetch_assoc($roles_q)) {
+                                $role_key = htmlspecialchars($r_item['role_key']);
+                                $role_name = htmlspecialchars($r_item['role_name']);
+                                echo "<option value=\"$role_key\">$role_name</option>";
+                            }
+                        } else {
+                            echo '<option value="admin">Admin</option>';
+                            echo '<option value="superadmin">Superadmin</option>';
+                        }
+                        ?>
                     </select>
                 </div>
 
@@ -120,13 +172,12 @@ include 'sidebar.php';
                     <button type="submit" class="btn btn-primary rounded-3 px-4">Simpan User</button>
                 </div>
             </form>
-        </div>
     </div>
         </div> <!-- End of inner p-3 p-md-4 -->
         
         <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
             <div class="container">
-                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+                <span><?= $app_footer; ?></span>
             </div>
         </footer>
     </div> <!-- End of main-canvas-area -->

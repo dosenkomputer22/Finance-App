@@ -18,23 +18,13 @@ if (!isset($_GET['id']) || empty(trim($_GET['id']))) {
 
 $id = (int)$_GET['id'];
 $error = '';
-$user_role = $_SESSION['role'] ?? 'admin';
-$user_username = $_SESSION['username'] ?? 'admin';
 
-// 1. Ambil data transaksi lama berdasarkan ID untuk ditaruh di form (dengan filter username jika level user biasa)
-if ($user_role === 'user') {
-    $query_select = "SELECT * FROM transaksi WHERE id = ? AND username = ?";
-} else {
-    $query_select = "SELECT * FROM transaksi WHERE id = ?";
-}
+// 1. Ambil data transaksi lama berdasarkan ID untuk ditaruh di form
+$query_select = "SELECT * FROM transaksi WHERE id = ?";
 $stmt_select = mysqli_prepare($koneksi, $query_select);
 
 if ($stmt_select) {
-    if ($user_role === 'user') {
-        mysqli_stmt_bind_param($stmt_select, "is", $id, $user_username);
-    } else {
-        mysqli_stmt_bind_param($stmt_select, "i", $id);
-    }
+    mysqli_stmt_bind_param($stmt_select, "i", $id);
     mysqli_stmt_execute($stmt_select);
     $result = mysqli_stmt_get_result($stmt_select);
     
@@ -46,6 +36,14 @@ if ($stmt_select) {
     
     $old_data = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt_select);
+
+    // Proteksi: Jika role adalah 'user', pastikan transaksi milik dia
+    $user_role = $_SESSION['role'] ?? 'admin';
+    $user_username = $_SESSION['username'] ?? 'user';
+    if ($user_role === 'user' && $old_data['username'] !== $user_username) {
+        header("Location: index.php?err=" . urlencode("Akses ditolak! Anda tidak diizinkan mengubah transaksi milik pengguna lain."));
+        exit();
+    }
 } else {
     die("Kegagalan memproses kueri database SELECT.");
 }
@@ -57,9 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $kategori = trim($_POST['kategori']);
     $jenis = trim($_POST['jenis']);
     $jumlah = trim($_POST['jumlah']);
+    $dompet = trim($_POST['dompet'] ?? 'Tunai');
 
     // Validasi data masukan
-    if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah)) {
+    if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah) || empty($dompet)) {
         $error = "Peringatan: Semua kolom isian formulir wajib dilengkapi!";
     } elseif ($jumlah <= 0) {
         $error = "Peringatan: Nominal jumlah transaksi wajib di atas Rp 0!";
@@ -68,20 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $jumlah_int = (int) $jumlah;
 
-        // Persingkat pembaruan menggunakan parameterized set statement dengan perlindungan username
-        if ($user_role === 'user') {
-            $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ? AND username = ?";
-        } else {
-            $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ? WHERE id = ?";
-        }
+        // Persingkat pembaruan menggunakan parameterized set statement
+        $query_update = "UPDATE transaksi SET tanggal = ?, keterangan = ?, kategori = ?, jenis = ?, jumlah = ?, dompet = ? WHERE id = ?";
         $stmt_update = mysqli_prepare($koneksi, $query_update);
 
         if ($stmt_update) {
-            if ($user_role === 'user') {
-                mysqli_stmt_bind_param($stmt_update, "ssssiis", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id, $user_username);
-            } else {
-                mysqli_stmt_bind_param($stmt_update, "ssssii", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $id);
-            }
+            mysqli_stmt_bind_param($stmt_update, "ssssisi", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $dompet, $id);
 
             if (mysqli_stmt_execute($stmt_update)) {
                 // Alihkan setelah sukses diupdate
@@ -102,7 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ubah Transaksi - KeuanganKu</title>
+    <title>Ubah Transaksi - <?= htmlspecialchars($app_name); ?></title>
+    <link rel="shortcut icon" href="<?= htmlspecialchars($app_favicon); ?>" type="image/x-icon">
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
@@ -213,6 +205,30 @@ include 'sidebar.php';
                 </div>
             </div>
 
+            <div class="mb-3">
+                <label for="dompet" class="form-label">Penyimpanan / Dompet</label>
+                <select class="form-select" id="dompet" name="dompet" required>
+                    <?php
+                    $dompet_query = mysqli_query($koneksi, "SELECT nama FROM dompet ORDER BY id ASC");
+                    if ($dompet_query) {
+                        $found_any_selected = false;
+                        while ($dompet_row = mysqli_fetch_assoc($dompet_query)) {
+                            $d_name = htmlspecialchars($dompet_row['nama']);
+                            $selected = ($old_data['dompet'] === $d_name) ? 'selected' : '';
+                            if ($selected) $found_any_selected = true;
+                            echo "<option value=\"$d_name\" $selected>$d_name</option>";
+                        }
+                        if (!$found_any_selected && !empty($old_data['dompet'])) {
+                            $d_name_old = htmlspecialchars($old_data['dompet']);
+                            echo "<option value=\"$d_name_old\" selected>$d_name_old (Kustom/Non-Aktif)</option>";
+                        }
+                    } else {
+                        echo '<option value="Tunai" selected>Tunai</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+
             <div class="mb-4">
                 <label for="keterangan" class="form-label">Keterangan Catatan</label>
                 <textarea class="form-control" id="keterangan" name="keterangan" rows="3" required><?= htmlspecialchars($old_data['keterangan']); ?></textarea>
@@ -227,7 +243,7 @@ include 'sidebar.php';
         
         <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
             <div class="container">
-                <span>Sistem Catatan Keuangan Native PHP & MySQL &copy; <?= date('Y'); ?></span>
+                <span><?= $app_footer; ?></span>
             </div>
         </footer>
     </div> <!-- End of main-canvas-area -->

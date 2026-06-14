@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { PlusSquare, ArrowDownLeft, ArrowUpRight, AlertTriangle, ArrowLeft } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, Wallet } from '../types';
 
 interface AddTransactionViewProps {
   categories: string[];
-  onAddTransaction: (tx: { tanggal: string; jenis: 'pemasukan' | 'pengeluaran'; kategori: string; jumlah: number; keterangan: string }) => void;
+  wallets: Wallet[];
+  onAddTransaction: (tx: { tanggal: string; jenis: 'pemasukan' | 'pengeluaran'; kategori: string; jumlah: number; keterangan: string; dompet?: string }) => void;
   onCancel: () => void;
 }
 
 export default function AddTransactionView({
   categories,
+  wallets,
   onAddTransaction,
   onCancel
 }: AddTransactionViewProps) {
@@ -17,6 +19,7 @@ export default function AddTransactionView({
   const [addKeterangan, setAddKeterangan] = useState('');
   const [addJenis, setAddJenis] = useState<'pemasukan' | 'pengeluaran'>('pemasukan');
   const [addKategori, setAddKategori] = useState('Gaji');
+  const [addDompet, setAddDompet] = useState('Tunai');
   const [addJumlah, setAddJumlah] = useState('');
   const [addError, setAddError] = useState('');
 
@@ -33,7 +36,7 @@ export default function AddTransactionView({
     e.preventDefault();
     setAddError('');
 
-    if (!addTanggal || !addKeterangan || !addJenis || !addJumlah || !addKategori) {
+    if (!addTanggal || !addKeterangan || !addJenis || !addJumlah || !addKategori || !addDompet) {
       setAddError('Harap lengkapi seluruh kolom formulir pendataan!');
       return;
     }
@@ -49,7 +52,8 @@ export default function AddTransactionView({
       jenis: addJenis,
       kategori: addKategori,
       jumlah: nominalValue,
-      keterangan: addKeterangan.trim()
+      keterangan: addKeterangan.trim(),
+      dompet: addDompet
     });
 
     // Reset Form
@@ -57,6 +61,7 @@ export default function AddTransactionView({
     setAddJumlah('');
     setAddJenis('pemasukan');
     setAddTanggal(new Date().toISOString().substring(0, 10));
+    setAddDompet('Tunai');
   };
 
   return (
@@ -86,7 +91,7 @@ export default function AddTransactionView({
             Kembali ke Dashboard
           </button>
         </div>
-
+ 
         <form onSubmit={handleSubmit} className="space-y-5">
           {addError && (
             <div className="bg-rose-50 border border-rose-100 rounded-xl p-3.5 text-xs text-rose-750 flex items-start gap-2.5 animate-pulse">
@@ -95,8 +100,8 @@ export default function AddTransactionView({
             </div>
           )}
 
-          {/* Grid Row 1: Date & Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Grid Row 1: Date & Category & Wallet */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pl-1 mb-2">
                 Tanggal Transaksi
@@ -123,6 +128,21 @@ export default function AddTransactionView({
               >
                 {categories.map((c, idx) => (
                   <option key={idx} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pl-1 mb-2">
+                Dompet / Rekening
+              </label>
+              <select
+                value={addDompet}
+                onChange={(e) => setAddDompet(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 font-bold transition-all cursor-pointer font-sans"
+              >
+                {wallets.map((w) => (
+                  <option key={w.id} value={w.nama}>{w.nama}</option>
                 ))}
               </select>
             </div>
@@ -255,6 +275,11 @@ export default function AddTransactionView({
               <div className="flex justify-between">
                 <span className="text-slate-400">Kategori:</span>
                 <span className="font-bold text-slate-800">{addKategori}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-400">Penyimpanan:</span>
+                <span className="font-bold text-slate-800">{addDompet}</span>
               </div>
 
               <div className="flex justify-between items-start gap-4">

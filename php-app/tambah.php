@@ -72,6 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Transaksi Reguler
         $tanggal = trim($_POST['tanggal']);
+        $dompet = trim($_POST['dompet'] ?? 'Tunai');
         
         // Validasi input
         if (empty($tanggal) || empty($keterangan) || empty($kategori) || empty($jenis) || empty($jumlah)) {
@@ -84,11 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $jumlah_int = (int)$jumlah;
             $user_username = $_SESSION['username'] ?? 'admin';
             
-            // Simpan ke tabel transaksi reguler dengan username
-            $query_insert = "INSERT INTO transaksi (tanggal, keterangan, kategori, jenis, jumlah, username) VALUES (?, ?, ?, ?, ?, ?)";
+            // Simpan ke tabel transaksi reguler dengan username & dompet info
+            $query_insert = "INSERT INTO transaksi (tanggal, keterangan, kategori, jenis, jumlah, dompet, username) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = mysqli_prepare($koneksi, $query_insert);
             if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "ssssis", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $user_username);
+                mysqli_stmt_bind_param($stmt, "ssssiss", $tanggal, $keterangan, $kategori, $jenis, $jumlah_int, $dompet, $user_username);
                 if (mysqli_stmt_execute($stmt)) {
                     mysqli_stmt_close($stmt);
                     header("Location: tambah.php?filter_jenis=" . urlencode($filter_jenis) . "&status=success");
@@ -131,7 +132,17 @@ if ($filter_jenis === 'berulang') {
 }
 
 $result_transaksi = mysqli_query($koneksi, $query_transaksi);
-$total_rows = $result_transaksi ? mysqli_num_rows($result_transaksi) : 0;
+
+// Olah data transaksi ke array untuk memudahkan visualisasi dan kalkulasi cepat
+$list_transaksi = [];
+$total_nominal = 0;
+if ($result_transaksi) {
+    while ($row = mysqli_fetch_assoc($result_transaksi)) {
+        $list_transaksi[] = $row;
+        $total_nominal += (int)$row['jumlah'];
+    }
+}
+$total_rows = count($list_transaksi);
 
 // Preservasi value input formulir saat terjadi kesalahan validasi
 $val_tanggal = isset($_POST['tanggal']) ? htmlspecialchars($_POST['tanggal']) : date('Y-m-d');
@@ -142,13 +153,21 @@ $val_keterangan = isset($_POST['keterangan']) ? htmlspecialchars($_POST['keteran
 $val_frekuensi = isset($_POST['frekuensi']) ? $_POST['frekuensi'] : 'Bulanan';
 
 $isOpen = !empty($error) || isset($_GET['add']);
+
+// Fungsi Helper format Rupiah
+if (!function_exists('rupiah')) {
+    function rupiah($angka) {
+        return "Rp " . number_format($angka, 0, ',', '.');
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $header_title; ?> - KeuanganKu</title>
+    <title><?= $header_title; ?> - <?= htmlspecialchars($app_name); ?></title>
+    <link rel="shortcut icon" href="<?= htmlspecialchars($app_favicon); ?>" type="image/x-icon">
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
@@ -164,8 +183,7 @@ $isOpen = !empty($error) || isset($_GET['add']);
             border-radius: 20px;
             background-color: #ffffff;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            max-width: 600px;
-            margin: 0 auto;
+            max-width: 100%;
         }
         .form-label {
             font-weight: 600;
@@ -180,6 +198,75 @@ $isOpen = !empty($error) || isset($_GET['add']);
         .form-control:focus, .form-select:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.15);
+        }
+
+        /* Modern Custom Badges with Perfect Contrast and Visibility */
+        .badge-kategori {
+            background-color: #f1f5f9;
+            color: #475569 !important;
+            border: 1px solid #cbd5e1;
+            font-size: 0.75rem;
+            padding: 0.4em 0.8em;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-pemasukan {
+            background-color: rgba(16, 185, 129, 0.08);
+            color: #065f46 !important;
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            font-size: 0.75rem;
+            padding: 0.4em 0.8em;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .badge-pengeluaran {
+            background-color: rgba(239, 68, 68, 0.08);
+            color: #991b1b !important;
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            font-size: 0.75rem;
+            padding: 0.4em 0.8em;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Modern Table Customization with Elite Spacing and Elegance */
+        .table-custom {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+        .table-custom thead th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            padding: 14px 16px;
+            border-top: none;
+            border-bottom: 1.5px solid #e2e8f0;
+        }
+        .table-custom tbody tr {
+            transition: all 0.2s ease;
+        }
+        .table-custom tbody tr:hover {
+            background-color: #fafafa !important;
+        }
+        .table-custom tbody td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+            font-size: 0.85rem;
+        }
+        .table-custom tbody tr:last-child td {
+            border-bottom: none;
         }
     </style>
 </head>
@@ -196,44 +283,99 @@ include 'sidebar.php';
             <p class="text-muted small mb-0"><?= $header_subtitle; ?></p>
         </div>
         <div>
-            <button class="btn btn-primary rounded-3 px-4 py-2.5 fw-bold text-uppercase tracking-wider shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseForm" aria-expanded="<?= $isOpen ? 'true' : 'false'; ?>" aria-controls="collapseForm">
-                <i class="bi bi-plus-circle-fill me-2"></i> Input Baru
+            <button class="btn btn-primary rounded-3 px-4 py-2.5 fw-bold text-uppercase tracking-wider shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#modalForm">
+                <i class="bi bi-pencil-square"></i> <span>Input Baru</span>
             </button>
         </div>
     </div>
 
+    <!-- Contextual Elegant Metric Summary Widget -->
+    <?php if ($filter_jenis === 'pemasukan'): ?>
+        <div class="card border-0 rounded-4 shadow-sm p-4 mb-4" style="background: linear-gradient(135deg, #064e3b 0%, #059669 100%); color: #ffffff;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <span class="text-uppercase font-monospace tracking-wider text-xs" style="opacity: 0.75; font-size: 0.7rem; letter-spacing: 0.05em;">Ringkasan Pendapatan Masuk</span>
+                    <h3 class="fw-black mb-1 mt-1 text-white" style="font-size: 1.85rem;">Rp <?= number_format($total_nominal, 0, ',', '.'); ?></h3>
+                    <p class="small mb-0 text-success-subtle" style="opacity: 0.9; font-size: 0.8rem;"><i class="bi bi-check2-circle"></i> Terakumulasi sehat dari total <strong><?= $total_rows; ?></strong> entri transaksi pemasukan aktif.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 rounded-pill p-3 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                    <i class="bi bi-graph-up-arrow fs-3 text-white"></i>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($filter_jenis === 'pengeluaran'): ?>
+        <div class="card border-0 rounded-4 shadow-sm p-4 mb-4" style="background: linear-gradient(135deg, #450a0a 0%, #dc2626 100%); color: #ffffff;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <span class="text-uppercase font-monospace tracking-wider text-xs" style="opacity: 0.75; font-size: 0.7rem; letter-spacing: 0.05em;">Total Belanja & Tagihan</span>
+                    <h3 class="fw-black mb-1 mt-1 text-white" style="font-size: 1.85rem;">Rp <?= number_format($total_nominal, 0, ',', '.'); ?></h3>
+                    <p class="small mb-0 text-danger-subtle" style="opacity: 0.9; font-size: 0.8rem;"><i class="bi bi-arrow-up-right-circle"></i> Alokasi arus kas keluar terdata pada <strong><?= $total_rows; ?></strong> jenis pengeluaran.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 rounded-pill p-3 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                    <i class="bi bi-graph-down-arrow fs-3 text-white"></i>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($filter_jenis === 'berulang'): ?>
+        <div class="card border-0 rounded-4 shadow-sm p-4 mb-4" style="background: linear-gradient(135deg, #1e1b4b 0%, #7c3aed 100%); color: #ffffff;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <span class="text-uppercase font-monospace tracking-wider text-xs" style="opacity: 0.75; font-size: 0.7rem; letter-spacing: 0.05em;">Template Rutin Terdaftar</span>
+                    <h3 class="fw-black mb-1 mt-1 text-white" style="font-size: 1.85rem;"><?= $total_rows; ?> Template Aktif</h3>
+                    <p class="small mb-0 text-white-50" style="opacity: 0.9; font-size: 0.8rem;"><i class="bi bi-alarm"></i> Sistem mengelompokkan template bulanan/mingguan agar proyeksi keuangan Anda termonitor terarah.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 rounded-pill p-3 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                    <i class="bi bi-arrow-clockwise fs-3 text-white"></i>
+                </div>
+            </div>
+        </div>
+    <?php else: ?>
+        <div class="card border-0 rounded-4 shadow-sm p-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <span class="text-uppercase font-monospace tracking-wider text-xs" style="opacity: 0.75; font-size: 0.7rem; letter-spacing: 0.05em;">Rangkuman Mutasi Kas Gabungan</span>
+                    <h3 class="fw-black mb-1 mt-1 text-white" style="font-size: 1.85rem;"><?= $total_rows; ?> Entri Tercatat</h3>
+                    <p class="small mb-0 text-slate-300" style="opacity: 0.9; font-size: 0.8rem;"><i class="bi bi-layers-half text-primary"></i> Menampilan rincian penuh seluruh mutasi tanpa filter pembatas aliran kas.</p>
+                </div>
+                <div class="bg-white bg-opacity-10 rounded-pill p-3 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                    <i class="bi bi-wallet2 fs-3 text-white"></i>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Alert status and actions -->
     <?php if (isset($_GET['status']) && $_GET['status'] === 'success'): ?>
-        <div class="alert alert-success px-3 py-3 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #047857;">
+        <div class="alert alert-success px-3 py-3 rounded-3 d-flex align-items-center mb-4 border-0" role="alert" style="background-color: rgba(16, 185, 129, 0.1); color: #047857;">
             <i class="bi bi-check-circle-fill me-2.5 fs-5 text-success"></i>
-            <div class="small fw-semibold">Berhasil: Catatan baru telah berhasil tersimpan dan disinkronkan ke dalam database!</div>
+            <div class="small fw-semibold">Berhasil: Catatan baru telah berhasil disimpan ke dalam database!</div>
         </div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="alert alert-danger px-3 py-3 rounded-3 d-flex align-items-center mb-4" role="alert" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #b91c1c;">
+        <div class="alert alert-danger px-3 py-3 rounded-3 d-flex align-items-center mb-4 border-0" role="alert" style="background-color: rgba(239, 68, 68, 0.1); color: #b91c1c;">
             <i class="bi bi-exclamation-triangle-fill me-2.5 fs-5 text-danger"></i>
             <div class="small fw-semibold"><?= htmlspecialchars($error); ?></div>
         </div>
     <?php endif; ?>
 
-    <!-- Collapsible Form row -->
-    <div class="collapse <?= $isOpen ? 'show' : ''; ?> mb-4" id="collapseForm">
-        <div class="row g-4">
-            
-            <!-- Spacious Input form Column -->
-            <div class="col-lg-8">
-                <div class="card border-0 rounded-4 shadow-sm p-4 p-md-5 bg-white">
-                    <div class="d-flex align-items-center gap-2 mb-4 pb-3" style="border-bottom: 1px solid #f1f5f9;">
-                        <div class="bg-primary-subtle text-primary rounded-3 p-2 d-flex align-items-center justify-content-center">
+    <!-- Modal Input Form Pop-up -->
+    <div class="modal fade" id="modalForm" tabindex="-1" aria-labelledby="modalFormLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 bg-white" style="border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0,0,0,0.12);">
+                <div class="modal-header border-0 pb-0" style="padding: 1.5rem 1.75rem 0.5rem 1.75rem;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="bg-primary-subtle text-primary rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                             <i class="bi bi-pencil-square fs-5"></i>
                         </div>
                         <div>
-                            <h5 class="fw-bold text-slate-800 mb-0">Formulir Catatan <?= ($filter_jenis === 'berulang') ? 'Transaksi Berulang' : 'Keuangan'; ?></h5>
-                            <p class="text-muted small mb-0" style="font-size: 0.73rem;">Protected database query operation</p>
+                            <h5 class="modal-title fw-semibold text-slate-800 mb-0" id="modalFormLabel">Formulir Input <?= ($filter_jenis === 'berulang') ? 'Transaksi Berulang' : 'Transaksi Baru'; ?></h5>
+                            <p class="text-muted small mb-0" style="font-size: 0.73rem;">Input data dengan integritas keamanan terpadu</p>
                         </div>
                     </div>
-
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem 1.75rem 1.75rem 1.75rem;">
                     <form action="tambah.php?filter_jenis=<?= htmlspecialchars($filter_jenis); ?>" method="POST">
                         <div class="row g-3 mb-3">
                             <?php if ($filter_jenis !== 'berulang'): ?>
@@ -272,25 +414,46 @@ include 'sidebar.php';
                             </div>
                         </div>
 
-                        <!-- Radio button styled selection for cash flow type -->
+                        <!-- Context-aware intelligent type locking -->
                         <div class="mb-4">
                             <label class="form-label text-uppercase text-muted font-monospace tracking-wider d-block" style="font-size: 0.68rem; font-weight: 800; margin-bottom: 10px;">Jenis Aliran Dana</label>
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="jenis" id="pemasukan" value="pemasukan" <?= ($val_jenis === 'pemasukan') ? 'checked' : ''; ?> autocomplete="off">
-                                    <label class="btn btn-outline-success w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center gap-2 fw-bold" for="pemasukan">
-                                        <i class="bi bi-arrow-down-left-circle-fill fs-4 text-success"></i>
-                                        <span style="font-size: 0.8rem;">DANA MASUK (PEMASUKAN)</span>
-                                    </label>
+                            
+                            <?php if ($filter_jenis === 'pemasukan'): ?>
+                                <input type="hidden" name="jenis" value="pemasukan">
+                                <div class="p-3 rounded-3 d-flex align-items-center gap-3 bg-semibold" style="background-color: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.2); color: #059669;">
+                                    <i class="bi bi-arrow-down-left-circle-fill fs-3 text-success"></i>
+                                    <div>
+                                        <span class="d-block fw-bold" style="font-size: 0.85rem; letter-spacing: 0.025em;">TIPE FORM: PEMASUKAN</span>
+                                        <span class="text-xs text-muted" style="font-size: 0.72rem;">Otomatis dikonfigurasikan khusus untuk mencatat penerimaan kas.</span>
+                                    </div>
                                 </div>
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="jenis" id="pengeluaran" value="pengeluaran" <?= ($val_jenis === 'pengeluaran') ? 'checked' : ''; ?> autocomplete="off">
-                                    <label class="btn btn-outline-danger w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center gap-2 fw-bold" for="pengeluaran">
-                                        <i class="bi bi-arrow-up-right-circle-fill fs-4 text-danger"></i>
-                                        <span style="font-size: 0.8rem;">DANA KELUAR (PENGELUARAN)</span>
-                                    </label>
+                            <?php elseif ($filter_jenis === 'pengeluaran'): ?>
+                                <input type="hidden" name="jenis" value="pengeluaran">
+                                <div class="p-3 rounded-3 d-flex align-items-center gap-3 bg-semibold" style="background-color: rgba(239, 68, 68, 0.08); border: 1.5px solid rgba(239, 68, 68, 0.2); color: #dc2626;">
+                                    <i class="bi bi-arrow-up-right-circle-fill fs-3 text-danger"></i>
+                                    <div>
+                                        <span class="d-block fw-bold" style="font-size: 0.85rem; letter-spacing: 0.025em;">TIPE FORM: PENGELUARAN</span>
+                                        <span class="text-xs text-muted" style="font-size: 0.72rem;">Otomatis dikonfigurasikan khusus untuk mencatat pengeluaran kas.</span>
+                                    </div>
                                 </div>
-                            </div>
+                            <?php else: ?>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="jenis" id="pemasukan" value="pemasukan" <?= ($val_jenis === 'pemasukan') ? 'checked' : ''; ?> autocomplete="off">
+                                        <label class="btn btn-outline-success w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center gap-2 fw-bold" for="pemasukan" style="transition: all 0.25s ease;">
+                                            <i class="bi bi-arrow-down-left-circle-fill fs-4 text-success"></i>
+                                            <span style="font-size: 0.8rem;">DANA MASUK (PEMASUKAN)</span>
+                                        </label>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="jenis" id="pengeluaran" value="pengeluaran" <?= ($val_jenis === 'pengeluaran') ? 'checked' : ''; ?> autocomplete="off">
+                                        <label class="btn btn-outline-danger w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center gap-2 fw-bold" for="pengeluaran" style="transition: all 0.25s ease;">
+                                            <i class="bi bi-arrow-up-right-circle-fill fs-4 text-danger"></i>
+                                            <span style="font-size: 0.8rem;">DANA KELUAR (PENGELUARAN)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Nominal values input with numeric validation -->
@@ -303,6 +466,27 @@ include 'sidebar.php';
                             <small class="text-muted d-block mt-1 pl-1" style="font-size: 0.68rem; font-weight: 500;">* Hanya masukkan angka murni saja tanpa tanda titik (.) atau koma (,).</small>
                         </div>
 
+                        <?php if ($filter_jenis !== 'berulang'): ?>
+                            <!-- Dropdown Dompet / Sumber Rekening -->
+                            <div class="mb-3">
+                                <label for="dompet" class="form-label text-uppercase text-muted font-monospace tracking-wider" style="font-size: 0.68rem; font-weight: 800;">Penyimpanan / Dompet</label>
+                                <select class="form-select py-2 px-3 focus-border-primary fw-bold" id="dompet" name="dompet" required>
+                                    <?php
+                                    $dompet_opts = mysqli_query($koneksi, "SELECT nama FROM dompet ORDER BY id ASC");
+                                    if ($dompet_opts) {
+                                        while ($dp = mysqli_fetch_assoc($dompet_opts)) {
+                                            $dp_name = htmlspecialchars($dp['nama']);
+                                            echo "<option value=\"$dp_name\">$dp_name</option>";
+                                        }
+                                    } else {
+                                        echo '<option value="Tunai" selected>Tunai</option>';
+                                    }
+                                    ?>
+                                </select>
+                                <small class="text-muted d-block mt-1 pl-1" style="font-size: 0.68rem; font-weight: 500;">* Pilih rekening/dompet internal yang akan dialiri dana ini.</small>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- Descriptions notes -->
                         <div class="mb-4">
                             <label for="keterangan" class="form-label text-uppercase text-muted font-monospace tracking-wider" style="font-size: 0.68rem; font-weight: 800;">Keterangan Catatan</label>
@@ -310,8 +494,8 @@ include 'sidebar.php';
                         </div>
 
                         <!-- Action click save -->
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-secondary px-4 py-2.5 rounded-3 fw-bold" data-bs-toggle="collapse" data-bs-target="#collapseForm">Batal</button>
+                        <div class="modal-footer border-0 p-0 pt-2 d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2.5 rounded-3 fw-bold" data-bs-dismiss="modal">Batal</button>
                             <button type="submit" class="btn btn-primary flex-grow-1 py-2.5 rounded-3 fw-bold text-uppercase tracking-wider">
                                 <i class="bi bi-save-fill me-1.5"></i> Simpan Catatan
                             </button>
@@ -319,24 +503,6 @@ include 'sidebar.php';
                     </form>
                 </div>
             </div>
-
-            <!-- Side audit guide column -->
-            <div class="col-lg-4">
-                <div class="card border-0 rounded-4 shadow-sm bg-dark text-white p-4 h-100 d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-secondary text-info">
-                            <i class="bi bi-shield-fill-check fs-5"></i>
-                            <span class="text-uppercase fw-bold font-monospace" style="font-size: 0.70rem; letter-spacing: 0.05em; color: #a5f3fc;">Sandi Proteksi Database Aktif</span>
-                        </div>
-                        <p class="small text-slate-300 mb-2.5 leading-relaxed" style="font-size: 0.75rem;">Aplikasi ini menggunakan Prepared MySQL Statements demi memisahkan struktur query dari payload data input:</p>
-                        <code class="d-block p-2.5 bg-black text-warning rounded-3 font-monospace mb-3" style="font-size: 0.68rem; line-height: 1.45;">
-                            $stmt = mysqli_prepare($koneksi, "INSERT ... (?, ?, ?, ?)");
-                        </code>
-                        <p class="small text-muted mb-0 leading-normal" style="font-size: 0.7rem;">Operasi ini mencegah serangan SQL Injection secara tuntas pada sistem finansial.</p>
-                    </div>
-                </div>
-            </div>
-            
         </div>
     </div>
 
@@ -345,19 +511,21 @@ include 'sidebar.php';
         <!-- Interactive search bar and filters section -->
         <div class="card-header bg-white py-3.5 border-0 bg-slate-50/50">
             <div class="row g-3 align-items-center">
-                <div class="col-md-5">
+                <div class="col-md-<?= ($filter_jenis === 'semua' || empty($filter_jenis)) ? '5' : '8'; ?>">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
                         <input type="text" id="tableSearch" class="form-control border-start-0 text-sm py-2" placeholder="Cari keterangan transaksi...">
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <select id="filterType" class="form-select text-sm py-2">
-                        <option value="">Semua Jenis Aliran</option>
-                        <option value="pemasukan">Hanya Pemasukan</option>
-                        <option value="pengeluaran">Hanya Pengeluaran</option>
-                    </select>
-                </div>
+                <?php if ($filter_jenis === 'semua' || empty($filter_jenis)): ?>
+                    <div class="col-md-3">
+                        <select id="filterType" class="form-select text-sm py-2">
+                            <option value="">Semua Jenis Aliran</option>
+                            <option value="pemasukan">Hanya Pemasukan</option>
+                            <option value="pengeluaran">Hanya Pengeluaran</option>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div class="col-md-4">
                     <select id="filterCategory" class="form-select text-sm py-2">
                         <option value="">Semua Kategori</option>
@@ -376,30 +544,30 @@ include 'sidebar.php';
 
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" id="txTable">
-                    <thead class="table-light text-uppercase font-monospace text-muted" style="font-size: 0.7rem; font-weight: 700;">
+                <table class="table table-hover align-middle mb-0 table-custom" id="txTable">
+                    <thead class="bg-light table-light">
                         <tr>
-                            <th class="ps-4 py-3" style="width: 70px;">No</th>
-                            <th style="width: 140px;"><?= ($filter_jenis === 'berulang') ? 'Frekuensi' : 'Tanggal'; ?></th>
-                            <th>Keterangan Catatan</th>
-                            <th style="width: 140px;">Kategori</th>
-                            <th class="text-center" style="width: 130px;">Jenis</th>
-                            <th class="text-end" style="width: 180px;">Nominal</th>
-                            <th class="text-center" style="width: 120px;">Aksi</th>
+                            <th class="ps-4 py-3 text-muted text-uppercase fw-bold font-monospace" style="width: 70px;">No</th>
+                            <th class="text-muted text-uppercase fw-bold font-monospace" style="width: 145px;"><?= ($filter_jenis === 'berulang') ? 'Frekuensi' : 'Tanggal'; ?></th>
+                            <th class="text-muted text-uppercase fw-bold font-monospace">Keterangan Catatan</th>
+                            <th class="text-muted text-uppercase fw-bold font-monospace" style="width: 140px;">Kategori</th>
+                            <th class="text-center text-muted text-uppercase fw-bold font-monospace" style="width: 135px;">Jenis</th>
+                            <th class="text-end text-muted text-uppercase fw-bold font-monospace" style="width: 190px;">Nominal</th>
+                            <th class="text-center text-muted text-uppercase fw-bold font-monospace" style="width: 120px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ($total_rows > 0): ?>
                             <?php 
                             $no = 1;
-                            while ($row = mysqli_fetch_assoc($result_transaksi)): 
+                            foreach ($list_transaksi as $row): 
                                 $r_id = $row['id'];
                                 $r_jenis = $row['jenis'];
-                                $r_kategori = htmlspecialchars($row['kategori'] ?? 'Umum');
+                                $r_kategori = (!empty($row['kategori'])) ? htmlspecialchars($row['kategori']) : 'Umum';
                                 $r_keterangan = htmlspecialchars($row['keterangan']);
                             ?>
                                 <tr data-jenis="<?= $r_jenis; ?>" data-kategori="<?= $r_kategori; ?>" data-keterangan="<?= strtolower($r_keterangan); ?>">
-                                    <td class="ps-4 fw-bold text-muted"><?= $no++; ?></td>
+                                    <td class="ps-4 fw-medium text-muted"><?= $no++; ?></td>
                                     <td>
                                         <div class="fw-semibold text-primary">
                                             <?php if ($filter_jenis === 'berulang'): ?>
@@ -411,15 +579,21 @@ include 'sidebar.php';
                                     </td>
                                     <td>
                                         <span class="fw-bold text-dark d-block"><?= $r_keterangan; ?></span>
+                                        <?php if ($filter_jenis !== 'berulang'): ?>
+                                            <span class="text-xs text-muted d-flex align-items-center gap-1 mt-1" style="font-size: 0.72rem;">
+                                                <i class="bi bi-wallet2 text-primary" style="font-size: 0.75rem;"></i>
+                                                <?= htmlspecialchars($row['dompet'] ?? 'Tunai'); ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge bg-light text-slate-600 border px-2.5 py-1.5 rounded-3 font-semibold"><?= $r_kategori; ?></span>
+                                        <span class="badge-kategori"><?= $r_kategori; ?></span>
                                     </td>
                                     <td class="text-center">
                                         <?php if ($r_jenis === 'pemasukan'): ?>
-                                            <span class="badge text-success fw-bold px-2.5 py-1.5 rounded-3 d-inline-flex align-items-center gap-1" style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15);"><i class="bi bi-arrow-down-left-circle-fill"></i> Pemasukan</span>
+                                            <span class="badge badge-pemasukan fw-semibold"><i class="bi bi-arrow-down-left-circle-fill"></i> Pemasukan</span>
                                         <?php else: ?>
-                                            <span class="badge text-danger fw-bold px-2.5 py-1.5 rounded-3 d-inline-flex align-items-center gap-1" style="background-color: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15);"><i class="bi bi-arrow-up-right-circle-fill"></i> Pengeluaran</span>
+                                            <span class="badge badge-pengeluaran fw-semibold"><i class="bi bi-arrow-up-right-circle-fill"></i> Pengeluaran</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end fw-black font-monospace">
@@ -446,7 +620,7 @@ include 'sidebar.php';
                                         </div>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         <?php else: ?>
                             <tr class="no-data-row">
                                 <td colspan="7" class="text-center py-5 text-muted">
@@ -472,7 +646,7 @@ include 'sidebar.php';
 
             function filterTable() {
                 const searchVal = searchInput.value.toLowerCase().trim();
-                const typeVal = typeFilter.value;
+                const typeVal = typeFilter ? typeFilter.value : '';
                 const catVal = categoryFilter.value;
 
                 tableRows.forEach(row => {
@@ -481,7 +655,7 @@ include 'sidebar.php';
                     const rowCat = row.getAttribute('data-kategori') || '';
 
                     const matchesSearch = rowDesc.includes(searchVal);
-                    const matchesType = typeVal === '' || rowJenis === typeVal;
+                    const matchesType = !typeFilter || typeVal === '' || rowJenis === typeVal;
                     const matchesCat = catVal === '' || rowCat === catVal;
 
                     if (matchesSearch && matchesType && matchesCat) {
@@ -495,6 +669,12 @@ include 'sidebar.php';
             if(searchInput) searchInput.addEventListener('input', filterTable);
             if(typeFilter) typeFilter.addEventListener('change', filterTable);
             if(categoryFilter) categoryFilter.addEventListener('change', filterTable);
+
+            // Auto-show modal if there is errors or manual add query trigger
+            <?php if ($isOpen): ?>
+            var myModal = new bootstrap.Modal(document.getElementById('modalForm'));
+            myModal.show();
+            <?php endif; ?>
         });
     </script>
 
@@ -502,7 +682,7 @@ include 'sidebar.php';
         
         <footer class="footer bg-white border-top py-4 text-center text-muted small mt-auto">
             <div class="container">
-                <span>Sistem Catatan Keuangan Native PHP &copy; <?= date('Y'); ?></span>
+                <span><?= $app_footer; ?></span>
             </div>
         </footer>
     </div> <!-- End of main-canvas-area -->

@@ -16,7 +16,8 @@ import {
   Coins,
   CreditCard,
   PiggyBank,
-  Users
+  Users,
+  PieChart
 } from 'lucide-react';
 import { ActiveTab, UserSim } from '../types';
 
@@ -89,6 +90,8 @@ export default function Sidebar({
     { id: 'dashboard' as ActiveTab, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transactions' as ActiveTab, label: 'Transaksi', icon: ArrowLeftRight },
     { id: 'reports' as ActiveTab, label: 'Laporan', icon: FileText },
+    { id: 'budgeting' as ActiveTab, label: 'Anggaran', icon: PieChart },
+    { id: 'rekening' as ActiveTab, label: 'Rekening', icon: Wallet },
     { id: 'categories' as ActiveTab, label: 'Kategori', icon: Tags },
     { id: 'users' as ActiveTab, label: 'Kelola User', icon: Users },
     { id: 'settings' as ActiveTab, label: 'Pengaturan', icon: Settings },

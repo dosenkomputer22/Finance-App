@@ -8,6 +8,13 @@ export interface Transaction {
   jenis: 'pemasukan' | 'pengeluaran';
   jumlah: number;
   kategori: string; // Category like Gaji, Belanja, Transportasi, Makan & Minum, etc.
+  dompet?: string; // Associated wallet/rekening
+}
+
+export interface Wallet {
+  id: string;
+  nama: string;
+  saldo_awal: number;
 }
 
 export interface DbConfig {
@@ -17,7 +24,7 @@ export interface DbConfig {
   name: string;
 }
 
-export type ActiveTab = 'dashboard' | 'transactions' | 'add-transaction' | 'reports' | 'categories' | 'settings' | 'users';
+export type ActiveTab = 'dashboard' | 'transactions' | 'add-transaction' | 'reports' | 'categories' | 'settings' | 'users' | 'budgeting' | 'rekening';
 
 export interface UserSim {
   id: string;

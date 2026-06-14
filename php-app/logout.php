@@ -7,7 +7,7 @@ session_start();
 // Hapus seluruh variabel session
 $_SESSION = array();
 
-// Bersihkan session cookie di web browser pengguna jika di-set
+// Bersihkan session cookie di web browser pengguna
 if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(session_name(), '', time() - 42000,
